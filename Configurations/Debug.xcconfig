@@ -1,3 +1,4 @@
+#include "Secrets.xcconfig"
 #include "Base.xcconfig"
 APP_DISPLAY_NAME = StockPulse Debug
 ALPHAVANTAGE_API_KEY = REPLACE_WITH_DEV_KEY
