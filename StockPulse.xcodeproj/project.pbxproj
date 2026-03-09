@@ -69,6 +69,7 @@
 		B1BBC69C283ECE9388004408 /* Features */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Features; path = LocalPackages/Features; sourceTree = SOURCE_ROOT; };
 		B7E52CCA01F1FDD6147B29F4 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		B9D5D83C62072A12C61EE427 /* StockPulseUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPulseUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		BC86A11E39059CFF3599B00C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D0DF0CD54F2721F80B1860F4 /* StockPulseUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StockPulseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D590B5CC0970772B055817B6 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		E2FB2039BAE952FFB684CC71 /* StockPulseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPulseTests.swift; sourceTree = "<group>"; };
@@ -114,6 +115,7 @@
 				A2012F20AC18AFDC39E19E48 /* Core */,
 				1BE6D012A31D39683FF8C21D /* Assets.xcassets */,
 				458F569F60030CB2ABE22B7A /* ContentView.swift */,
+				BC86A11E39059CFF3599B00C /* Info.plist */,
 				252AD87D1A080EC7DD27628C /* StockPulseApp.swift */,
 			);
 			path = StockPulse;
