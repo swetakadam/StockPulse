@@ -7,10 +7,11 @@
 
 import Foundation
 
-// TODO: Add Universal Link / deep link routing cases once AppCoordinator onOpenURL is wired
 enum AppRoute: Hashable {
+    case dashboard
     case stockDetail(symbol: String)
-    case watchlist
-    case auth
     case search
+    case watchlist
+    case notifications
+    case notification(userInfo: [String: String])
 }
