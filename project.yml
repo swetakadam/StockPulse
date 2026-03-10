@@ -51,6 +51,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sweta.stockpulse
         INFOPLIST_FILE: StockPulse/Info.plist
+        DEVELOPMENT_TEAM: 2RB6B6Z8G3
+        CODE_SIGN_STYLE: Automatic
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.sweta.stockpulse.debug

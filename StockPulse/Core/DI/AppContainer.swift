@@ -7,22 +7,29 @@
 
 import Foundation
 import Factory
+import Domain
+import Data
 
-// TODO: Register all concrete implementations; add scoped/singleton lifetimes where appropriate
 extension Container {
 
     // MARK: - Network
     var apiClient: Factory<APIClientProtocol> {
-        self { APIClient() }
+        self { try! AlphaVantageClient() }
+    }
+
+    // MARK: - Persistence
+    var watchlistStore: Factory<WatchlistStoreProtocol> {
+        self { UserDefaultsWatchlistStore() }
     }
 
     // MARK: - Repositories
     var stockRepository: Factory<StockRepositoryProtocol> {
-        self { StockRepositoryImpl(apiClient: self.apiClient()) }
-    }
-
-    var watchlistRepository: Factory<WatchlistRepositoryProtocol> {
-        self { WatchlistRepositoryImpl(store: WatchlistStore()) }
+        self {
+            StockRepositoryImpl(
+                apiClient: self.apiClient(),
+                watchlistStore: self.watchlistStore()
+            )
+        }
     }
 
     // MARK: - Use Cases
@@ -30,15 +37,19 @@ extension Container {
         self { FetchStockUseCase(repository: self.stockRepository()) }
     }
 
-    var fetchQuoteUseCase: Factory<FetchQuoteUseCaseProtocol> {
-        self { FetchQuoteUseCase(repository: self.stockRepository()) }
-    }
-
     var searchStocksUseCase: Factory<SearchStocksUseCaseProtocol> {
         self { SearchStocksUseCase(repository: self.stockRepository()) }
     }
 
-    var manageWatchlistUseCase: Factory<ManageWatchlistUseCaseProtocol> {
-        self { ManageWatchlistUseCase(repository: self.watchlistRepository()) }
+    var fetchWatchlistUseCase: Factory<FetchWatchlistUseCaseProtocol> {
+        self { FetchWatchlistUseCase(repository: self.stockRepository()) }
+    }
+
+    var addToWatchlistUseCase: Factory<AddToWatchlistUseCaseProtocol> {
+        self { AddToWatchlistUseCase(repository: self.stockRepository()) }
+    }
+
+    var removeFromWatchlistUseCase: Factory<RemoveFromWatchlistUseCaseProtocol> {
+        self { RemoveFromWatchlistUseCase(repository: self.stockRepository()) }
     }
 }
