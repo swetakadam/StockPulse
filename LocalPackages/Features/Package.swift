@@ -3,17 +3,18 @@ import PackageDescription
 
 let package = Package(
     name: "Features",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS(.v17), .macOS(.v13)],
     products: [
         .library(name: "Features", targets: ["Features"])
     ],
     dependencies: [
-        .package(path: "../Domain")
+        .package(path: "../Domain"),
+        .package(url: "https://github.com/hmlongco/Factory", from: "2.3.0")
     ],
     targets: [
         .target(
             name: "Features",
-            dependencies: ["Domain"],
+            dependencies: ["Domain", "Factory"],
             path: "Sources/Features"
         ),
         .testTarget(

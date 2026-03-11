@@ -9,6 +9,7 @@ import Foundation
 import Factory
 import Domain
 import Data
+import Features
 
 extension Container {
 
@@ -51,5 +52,15 @@ extension Container {
 
     var removeFromWatchlistUseCase: Factory<RemoveFromWatchlistUseCaseProtocol> {
         self { RemoveFromWatchlistUseCase(repository: self.stockRepository()) }
+    }
+
+    // MARK: - ViewModels
+    var dashboardViewModel: Factory<DashboardViewModel> {
+        self {
+            DashboardViewModel(
+                fetchStockUseCase:     self.fetchStockUseCase(),
+                fetchWatchlistUseCase: self.fetchWatchlistUseCase()
+            )
+        }
     }
 }
