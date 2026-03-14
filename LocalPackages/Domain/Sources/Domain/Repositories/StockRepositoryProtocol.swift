@@ -25,4 +25,10 @@ public protocol StockRepositoryProtocol {
 
     /// Remove a symbol from the user's watchlist.
     func removeFromWatchlist(symbol: String) async throws
+
+    /// Fetch company overview (OVERVIEW endpoint).
+    func fetchCompanyOverview(symbol: String) async throws -> CompanyOverview
+
+    /// Fetch daily time series for charting (TIME_SERIES_DAILY endpoint).
+    func fetchTimeSeries(symbol: String) async throws -> [PricePoint]
 }

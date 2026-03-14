@@ -15,9 +15,9 @@ extension Container {
 
     // MARK: - Network
     var apiClient: Factory<APIClientProtocol> {
-        self { try! AlphaVantageClient(bundle: Bundle.main) }
+        self { try! FinnhubClient(bundle: Bundle.main) }
+            .singleton
     }
-
 
     // MARK: - Persistence
     var watchlistStore: Factory<WatchlistStoreProtocol> {
@@ -64,6 +64,14 @@ extension Container {
         self { RemoveFromWatchlistUseCase(repository: self.stockRepository()) }
     }
 
+    var fetchCompanyOverviewUseCase: Factory<FetchCompanyOverviewUseCaseProtocol> {
+        self { FetchCompanyOverviewUseCase(repository: self.stockRepository()) }
+    }
+
+    var fetchTimeSeriesUseCase: Factory<FetchTimeSeriesUseCaseProtocol> {
+        self { FetchTimeSeriesUseCase(repository: self.stockRepository()) }
+    }
+
     // MARK: - ViewModels
     var dashboardViewModel: Factory<DashboardViewModel> {
         self {
@@ -71,6 +79,20 @@ extension Container {
                 fetchStockUseCase:     self.fetchStockUseCase(),
                 fetchWatchlistUseCase: self.fetchWatchlistUseCase(),
                 cache:                 self.stockCache()
+            )
+        }
+    }
+
+    var stockDetailViewModel: ParameterFactory<String, StockDetailViewModel> {
+        self { symbol in
+            StockDetailViewModel(
+                symbol:                      symbol,
+                fetchStockUseCase:           self.fetchStockUseCase(),
+                fetchCompanyOverviewUseCase: self.fetchCompanyOverviewUseCase(),
+                fetchTimeSeriesUseCase:      self.fetchTimeSeriesUseCase(),
+                fetchWatchlistUseCase:       self.fetchWatchlistUseCase(),
+                addToWatchlistUseCase:       self.addToWatchlistUseCase(),
+                removeFromWatchlistUseCase:  self.removeFromWatchlistUseCase()
             )
         }
     }

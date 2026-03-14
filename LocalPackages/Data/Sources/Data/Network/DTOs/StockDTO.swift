@@ -7,40 +7,24 @@
 
 import Foundation
 
-// MARK: - Outer wrapper
-
-struct GlobalQuoteResponse: Decodable {
-    let globalQuote: GlobalQuote
-
-    enum CodingKeys: String, CodingKey {
-        case globalQuote = "Global Quote"
-    }
-}
-
-// MARK: - Quote payload
-
-struct GlobalQuote: Decodable {
-    let symbol: String
-    let open: String
-    let high: String
-    let low: String
-    let price: String
-    let volume: String
-    let latestTradingDay: String
-    let previousClose: String
-    let change: String
-    let changePercent: String   // e.g. "1.25%"
+/// Finnhub /quote response.
+/// All fields are Double — no string parsing required.
+struct FinnhubQuoteDTO: Decodable {
+    let current:       Double  // c — current price
+    let change:        Double  // d — change
+    let changePercent: Double  // dp — change percent
+    let high:          Double  // h — day high
+    let low:           Double  // l — day low
+    let open:          Double  // o — day open
+    let previousClose: Double  // pc — previous close
 
     enum CodingKeys: String, CodingKey {
-        case symbol           = "01. symbol"
-        case open             = "02. open"
-        case high             = "03. high"
-        case low              = "04. low"
-        case price            = "05. price"
-        case volume           = "06. volume"
-        case latestTradingDay = "07. latest trading day"
-        case previousClose    = "08. previous close"
-        case change           = "09. change"
-        case changePercent    = "10. change percent"
+        case current       = "c"
+        case change        = "d"
+        case changePercent = "dp"
+        case high          = "h"
+        case low           = "l"
+        case open          = "o"
+        case previousClose = "pc"
     }
 }

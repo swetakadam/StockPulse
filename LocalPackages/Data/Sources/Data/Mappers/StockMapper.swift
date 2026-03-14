@@ -10,72 +10,85 @@ import Domain
 
 enum StockMapper {
 
-    // MARK: - Search result → Stock (no live price available)
+    // MARK: - FinnhubQuoteDTO → Stock
 
-    static func toStock(from match: SymbolMatch) -> Stock {
+    static func toStock(symbol: String, from dto: FinnhubQuoteDTO) -> Stock {
         Stock(
-            id: match.symbol,
-            symbol: match.symbol,
-            companyName: match.name,
+            id: symbol,
+            symbol: symbol,
+            companyName: symbol,          // populated separately from profile
+            currentPrice: dto.current,
+            change: dto.change,
+            changePercent: dto.changePercent,
+            volume: 0,                    // not in /quote endpoint
+            marketCap: 0,                 // not in /quote endpoint
+            logoURL: nil
+        )
+    }
+
+    // MARK: - FinnhubQuoteDTO → Quote
+
+    static func toQuote(symbol: String, from dto: FinnhubQuoteDTO) -> Quote {
+        Quote(
+            symbol: symbol,
+            price: dto.current,
+            change: dto.change,
+            changePercent: dto.changePercent,
+            timestamp: Date(),
+            volume: 0,                    // not in /quote endpoint
+            high: dto.high,
+            low: dto.low,
+            open: dto.open
+        )
+    }
+
+    // MARK: - FinnhubProfileDTO → CompanyOverview
+
+    static func toCompanyOverview(symbol: String, from dto: FinnhubProfileDTO) -> CompanyOverview {
+        // Finnhub returns marketCapitalization in millions USD — convert to full value
+        let marketCap = (dto.marketCapitalization ?? 0) * 1_000_000
+
+        return CompanyOverview(
+            symbol: symbol,
+            companyName: dto.name ?? symbol,
+            description: dto.weburl ?? "No description available.",
+            sector: dto.finnhubIndustry ?? "N/A",
+            industry: dto.finnhubIndustry ?? "N/A",
+            marketCap: marketCap,
+            peRatio: nil,         // not available from /stock/profile2
+            eps: nil,             // not available from /stock/profile2
+            week52High: 0,        // not available from /stock/profile2
+            week52Low: 0,         // not available from /stock/profile2
+            dividendYield: nil    // not available from /stock/profile2
+        )
+    }
+
+    // MARK: - FinnhubCandleDTO → [PricePoint]
+
+    static func toPricePoints(from dto: FinnhubCandleDTO) -> [PricePoint] {
+        guard dto.status == "ok" else { return [] }
+        return zip(dto.timestamps, dto.closes)
+            .map { timestamp, close in
+                PricePoint(
+                    date: Date(timeIntervalSince1970: TimeInterval(timestamp)),
+                    close: close
+                )
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    // MARK: - FinnhubSearchResult → Stock (lightweight, no live price)
+
+    static func toStock(from result: FinnhubSearchResult) -> Stock {
+        Stock(
+            id: result.symbol,
+            symbol: result.symbol,
+            companyName: result.description,
             currentPrice: 0,
             change: 0,
             changePercent: 0,
             volume: 0,
             marketCap: 0,
-            logoURL: nil
-        )
-    }
-
-    // MARK: - GlobalQuote → Quote? (nil if price string is unparseable)
-
-    static func toQuote(from quote: GlobalQuote) -> Quote? {
-        guard let price  = Double(quote.price),
-              let high   = Double(quote.high),
-              let low    = Double(quote.low),
-              let open   = Double(quote.open),
-              let volume = Int(quote.volume),
-              let change = Double(quote.change)
-        else { return nil }
-
-        // Strip trailing "%" before parsing changePercent
-        let percentString = quote.changePercent
-            .replacingOccurrences(of: "%", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        guard let changePercent = Double(percentString) else { return nil }
-
-        return Quote(
-            symbol: quote.symbol,
-            price: price,
-            change: change,
-            changePercent: changePercent,
-            timestamp: Date(),          // Alpha Vantage free tier has no live timestamp
-            volume: volume,
-            high: high,
-            low: low,
-            open: open
-        )
-    }
-
-    // MARK: - GlobalQuote → Stock (marketCap not available from GLOBAL_QUOTE)
-
-    static func toStock(from quote: GlobalQuote) -> Stock {
-        let price         = Double(quote.price)  ?? 0
-        let change        = Double(quote.change) ?? 0
-        let volume        = Int(quote.volume)    ?? 0
-        let percentString = quote.changePercent
-            .replacingOccurrences(of: "%", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        let changePercent = Double(percentString) ?? 0
-
-        return Stock(
-            id: quote.symbol,
-            symbol: quote.symbol,
-            companyName: quote.symbol,  // GLOBAL_QUOTE doesn't return company name
-            currentPrice: price,
-            change: change,
-            changePercent: changePercent,
-            volume: volume,
-            marketCap: 0,               // not available from GLOBAL_QUOTE
             logoURL: nil
         )
     }

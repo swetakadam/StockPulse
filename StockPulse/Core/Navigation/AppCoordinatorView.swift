@@ -67,7 +67,7 @@ struct AppCoordinatorView: View {
         case .dashboard:
             Text("Dashboard")
         case .stockDetail(let symbol):
-            Text("Stock: \(symbol)")
+            StockDetailView(viewModel: Container.shared.stockDetailViewModel(symbol), symbol: symbol)
         case .search:
             Text("Search")
         case .watchlist:

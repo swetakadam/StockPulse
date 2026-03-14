@@ -18,21 +18,16 @@ public final class StockRepositoryImpl: StockRepositoryProtocol {
         watchlistStore: WatchlistStoreProtocol,
         cache: StockCacheProtocol
     ) {
-        self.apiClient = apiClient
+        self.apiClient      = apiClient
         self.watchlistStore = watchlistStore
-        self.cache = cache
+        self.cache          = cache
     }
 
     // MARK: - Quote
 
     public func fetchQuote(symbol: String) async throws -> Quote {
-        let response: GlobalQuoteResponse = try await apiClient.fetch(
-            endpoint: .globalQuote(symbol: symbol)
-        )
-        guard let quote = StockMapper.toQuote(from: response.globalQuote) else {
-            throw NetworkError.emptyResponse
-        }
-        return quote
+        let dto: FinnhubQuoteDTO = try await apiClient.fetch(endpoint: .quote(symbol: symbol))
+        return StockMapper.toQuote(symbol: symbol, from: dto)
     }
 
     // MARK: - Stocks (cache-first)
@@ -52,20 +47,17 @@ public final class StockRepositoryImpl: StockRepositoryProtocol {
     }
 
     private func fetchStockFromNetwork(symbol: String) async throws -> Stock {
-        let response: GlobalQuoteResponse = try await apiClient.fetch(
-            endpoint: .globalQuote(symbol: symbol)
-        )
-        let stock = StockMapper.toStock(from: response.globalQuote)
-        return stock
+        let dto: FinnhubQuoteDTO = try await apiClient.fetch(endpoint: .quote(symbol: symbol))
+        return StockMapper.toStock(symbol: symbol, from: dto)
     }
 
     // MARK: - Search
 
     public func searchStocks(query: String) async throws -> [Stock] {
-        let response: SymbolSearchResponse = try await apiClient.fetch(
-            endpoint: .searchSymbol(query: query)
+        let response: FinnhubSearchResponse = try await apiClient.fetch(
+            endpoint: .search(query: query)
         )
-        return response.bestMatches.map { StockMapper.toStock(from: $0) }
+        return response.result.map { StockMapper.toStock(from: $0) }
     }
 
     // MARK: - Watchlist
@@ -82,5 +74,23 @@ public final class StockRepositoryImpl: StockRepositoryProtocol {
 
     public func removeFromWatchlist(symbol: String) async throws {
         watchlistStore.remove(symbol: symbol)
+    }
+
+    // MARK: - Company Overview
+
+    public func fetchCompanyOverview(symbol: String) async throws -> CompanyOverview {
+        let dto: FinnhubProfileDTO = try await apiClient.fetch(
+            endpoint: .overview(symbol: symbol)
+        )
+        return StockMapper.toCompanyOverview(symbol: symbol, from: dto)
+    }
+
+    // MARK: - Daily Time Series
+
+    public func fetchTimeSeries(symbol: String) async throws -> [PricePoint] {
+        let dto: FinnhubCandleDTO = try await apiClient.fetch(
+            endpoint: .timeSeries(symbol: symbol)
+        )
+        return StockMapper.toPricePoints(from: dto)
     }
 }

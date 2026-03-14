@@ -14,9 +14,9 @@ public protocol APIClientProtocol {
     func fetch<T: Decodable>(endpoint: APIEndpoint) async throws -> T
 }
 
-// MARK: - AlphaVantageClient
+// MARK: - FinnhubClient
 
-public final class AlphaVantageClient: APIClientProtocol {
+public final class FinnhubClient: APIClientProtocol {
     private let baseURL: String
     private let apiKey: String
     private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "Network")
@@ -25,26 +25,27 @@ public final class AlphaVantageClient: APIClientProtocol {
     public init(bundle: Bundle = .main) throws {
         let info = bundle.infoDictionary
         guard
-            let key = info?["ALPHAVANTAGE_API_KEY"] as? String, !key.isEmpty
+            let key = info?["FINNHUB_API_KEY"] as? String, !key.isEmpty
         else {
             throw NetworkError.missingAPIKey
         }
         guard
-            let url = info?["ALPHAVANTAGE_BASE_URL"] as? String, !url.isEmpty
+            let url = info?["FINNHUB_BASE_URL"] as? String, !url.isEmpty
         else {
             throw NetworkError.missingAPIKey
         }
-        self.apiKey = key
+        self.apiKey  = key
         self.baseURL = url
     }
 
     public func fetch<T: Decodable>(endpoint: APIEndpoint) async throws -> T {
-        // 1. Build URL
+        // 1. Build URL — base path + endpoint path + query items + token
         guard var components = URLComponents(string: baseURL) else {
             throw NetworkError.invalidURL
         }
+        components.path += endpoint.path
         var items = endpoint.queryItems
-        items.append(URLQueryItem(name: "apikey", value: apiKey))
+        items.append(URLQueryItem(name: "token", value: apiKey))
         components.queryItems = items
 
         guard let url = components.url else {

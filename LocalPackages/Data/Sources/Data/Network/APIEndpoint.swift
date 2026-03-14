@@ -7,47 +7,66 @@
 
 import Foundation
 
-/// Represents a single Alpha Vantage API endpoint.
-/// The apiKey is NOT included here — it is appended by AlphaVantageClient.
+/// Represents a single Finnhub API endpoint.
+/// The token is NOT included here — it is appended by FinnhubClient.
 public enum APIEndpoint {
-    case globalQuote(symbol: String)
-    case searchSymbol(query: String)
-    case timeSeries(symbol: String, interval: String)
-    case overview(symbol: String)
+    case quote(symbol: String)
+    case profile(symbol: String)
+    case candles(symbol: String, from: Int, to: Int)
+    case search(query: String)
+    case overview(symbol: String)    // maps to /stock/profile2 (same as profile)
+    case timeSeries(symbol: String)  // daily candles for last 365 days
 
-    /// The Alpha Vantage `function` query parameter value.
-    public var function: String {
+    /// URL path appended to the base URL for each endpoint.
+    public var path: String {
         switch self {
-        case .globalQuote:  return "GLOBAL_QUOTE"
-        case .searchSymbol: return "SYMBOL_SEARCH"
-        case .timeSeries:   return "TIME_SERIES_INTRADAY"
-        case .overview:     return "OVERVIEW"
+        case .quote:                 return "/quote"
+        case .profile, .overview:   return "/stock/profile2"
+        case .candles, .timeSeries: return "/stock/candle"
+        case .search:               return "/search"
         }
     }
 
-    /// All query items for this endpoint excluding `apikey`.
+    /// Query items excluding `token` — appended by FinnhubClient.
     public var queryItems: [URLQueryItem] {
         switch self {
-        case .globalQuote(let symbol):
+        case .quote(let symbol):
             return [
-                URLQueryItem(name: "function", value: function),
-                URLQueryItem(name: "symbol",   value: symbol)
+                URLQueryItem(name: "symbol", value: symbol)
             ]
-        case .searchSymbol(let query):
+
+        case .profile(let symbol):
             return [
-                URLQueryItem(name: "function", value: function),
-                URLQueryItem(name: "keywords", value: query)
+                URLQueryItem(name: "symbol", value: symbol)
             ]
-        case .timeSeries(let symbol, let interval):
+
+        case .candles(let symbol, let from, let to):
             return [
-                URLQueryItem(name: "function", value: function),
-                URLQueryItem(name: "symbol",   value: symbol),
-                URLQueryItem(name: "interval", value: interval)
+                URLQueryItem(name: "symbol",     value: symbol),
+                URLQueryItem(name: "resolution", value: "D"),
+                URLQueryItem(name: "from",       value: "\(from)"),
+                URLQueryItem(name: "to",         value: "\(to)")
             ]
+
+        case .search(let query):
+            return [
+                URLQueryItem(name: "q", value: query)
+            ]
+
         case .overview(let symbol):
             return [
-                URLQueryItem(name: "function", value: function),
-                URLQueryItem(name: "symbol",   value: symbol)
+                URLQueryItem(name: "symbol", value: symbol)
+            ]
+
+        case .timeSeries(let symbol):
+            // Daily candles for last 365 days
+            let to   = Int(Date().timeIntervalSince1970)
+            let from = to - (365 * 24 * 60 * 60)
+            return [
+                URLQueryItem(name: "symbol",     value: symbol),
+                URLQueryItem(name: "resolution", value: "D"),
+                URLQueryItem(name: "from",       value: "\(from)"),
+                URLQueryItem(name: "to",         value: "\(to)")
             ]
         }
     }
