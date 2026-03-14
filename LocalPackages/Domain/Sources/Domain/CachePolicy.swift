@@ -10,13 +10,14 @@
 import Foundation
 
 public enum CachePolicy {
-    case freeTier    // 25 calls/day — aggressive cache, sequential fetch
-    case premiumTier // unlimited — short cache, concurrent fetch
+    case freeTier    // .freeTier    — Alpha Vantage (25 calls/day), sequential, 300ms delay
+    case premiumTier // .premiumTier — Finnhub (60 calls/min), concurrent, no delay
+                     // Switch back to .freeTier if changing API provider
 
     /// Single source of truth.
     /// To upgrade: change .freeTier to .premiumTier here.
     /// Everything else (TTL, fetch strategy, delay) updates automatically.
-    public static let current: CachePolicy = .freeTier
+    public static let current: CachePolicy = .premiumTier
 
     /// Cache TTL in seconds
     public var cacheTTL: TimeInterval {
@@ -37,7 +38,7 @@ public enum CachePolicy {
     /// Delay between sequential requests (free tier only)
     public var requestDelay: UInt64 {
         switch self {
-        case .freeTier:    return 300_000_000  // 300ms
+        case .freeTier:    return 0  // kept for API compatibility
         case .premiumTier: return 0
         }
     }

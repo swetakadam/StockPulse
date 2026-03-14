@@ -201,9 +201,9 @@ public final class DashboardViewModel: ObservableObject, DashboardViewModelProto
         }
     }
 
-    /// Free tier: sequential with delay between requests.
-    /// With 24hr cache, each symbol costs 1 API call only on
-    /// first load per day. Subsequent loads served from cache instantly.
+    /// Free tier: sequential fallback — no delay needed for Finnhub (60 calls/min).
+    /// No delay needed — Finnhub allows 60 calls/min.
+    /// Sequential kept only as fallback for .freeTier policy.
     private func fetchStocksSequentially(symbols: [String]) async -> [Stock] {
         var results: [Stock] = []
         for symbol in symbols {
