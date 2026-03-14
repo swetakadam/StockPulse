@@ -10,9 +10,47 @@ import Domain
 
 struct PriceHeaderView: View {
     let stock: Stock?
+    var isInWatchlist: Bool = false
+    var logoURL: String? = nil
+    var onWatchlistToggle: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Logo + symbol/name row + watchlist star
+            HStack(spacing: 12) {
+                if let logoURL, let url = URL(string: logoURL) {
+                    AsyncImage(url: url) { image in
+                        image.resizable()
+                             .aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.secondary.opacity(0.2))
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(stock?.symbol ?? "")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text(stock?.companyName ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    onWatchlistToggle()
+                } label: {
+                    Image(systemName: isInWatchlist ? "star.fill" : "star")
+                        .font(.title2)
+                        .foregroundStyle(isInWatchlist ? .yellow : .secondary)
+                }
+            }
+
+            // Price row
             if let stock {
                 Text(stock.currentPrice, format: .currency(code: "USD"))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
@@ -52,9 +90,13 @@ struct PriceHeaderView: View {
 
 #Preview {
     VStack(alignment: .leading, spacing: 24) {
-        PriceHeaderView(stock: .mockAAPL)
-        PriceHeaderView(stock: .mockGOOGL)
-        PriceHeaderView(stock: nil)
+        PriceHeaderView(
+            stock: .mockAAPL,
+            isInWatchlist: true,
+            logoURL: CompanyOverview.mockAAPL.logoURL
+        ) {}
+        PriceHeaderView(stock: .mockGOOGL) {}
+        PriceHeaderView(stock: nil) {}
     }
     .padding()
 }

@@ -21,33 +21,22 @@ struct KeyStatsView: View {
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                 spacing: 12
             ) {
-                StatCell(title: "Market Cap", value: formatMarketCap(stock?.marketCap))
-                StatCell(title: "P/E Ratio",  value: formatDouble(overview?.peRatio,    format: "%.1f"))
-                StatCell(title: "EPS",        value: formatDouble(overview?.eps,         format: "$%.2f"))
-                StatCell(title: "52W High",   value: formatDouble(overview?.week52High,  format: "$%.2f"))
-                StatCell(title: "52W Low",    value: formatDouble(overview?.week52Low,   format: "$%.2f"))
-                StatCell(title: "Volume",     value: formatVolume(stock?.volume))
-                StatCell(title: "Div. Yield", value: formatDividend(overview?.dividendYield))
-                StatCell(title: "Sector",     value: overview?.sector ?? "—")
+                StatCell(label: "Open",   value: "—")
+                StatCell(label: "Volume", value: formatVolume(stock?.volume))
+                if let overview {
+                    StatCell(label: "Market Cap", value: overview.marketCap)
+                    StatCell(label: "P/E Ratio",  value: overview.peRatio)
+                    StatCell(label: "EPS",        value: overview.eps)
+                    StatCell(label: "52W High",   value: overview.weekHigh52)
+                    StatCell(label: "52W Low",    value: overview.weekLow52)
+                    StatCell(label: "Avg Volume", value: overview.avgVolume)
+                    StatCell(label: "Sector",     value: overview.sector)
+                }
             }
         }
     }
 
     // MARK: - Formatters
-
-    private func formatMarketCap(_ value: Double?) -> String {
-        guard let v = value, v > 0 else { return "—" }
-        switch v {
-        case 1_000_000_000_000...: return String(format: "$%.2fT", v / 1_000_000_000_000)
-        case 1_000_000_000...:     return String(format: "$%.2fB", v / 1_000_000_000)
-        default:                   return String(format: "$%.2fM", v / 1_000_000)
-        }
-    }
-
-    private func formatDouble(_ value: Double?, format: String) -> String {
-        guard let v = value, v > 0 else { return "—" }
-        return String(format: format, v)
-    }
 
     private func formatVolume(_ value: Int?) -> String {
         guard let v = value, v > 0 else { return "—" }
@@ -57,22 +46,17 @@ struct KeyStatsView: View {
         default:           return "\(v)"
         }
     }
-
-    private func formatDividend(_ value: Double?) -> String {
-        guard let v = value, v > 0 else { return "—" }
-        return String(format: "%.2f%%", v * 100)
-    }
 }
 
 // MARK: - StatCell
 
 private struct StatCell: View {
-    let title: String
+    let label: String
     let value: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)

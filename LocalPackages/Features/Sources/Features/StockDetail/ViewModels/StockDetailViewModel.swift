@@ -21,7 +21,7 @@ public protocol StockDetailViewModelProtocol: ObservableObject {
     var isLoading:     Bool             { get }
     var error:         String?          { get }
     var isInWatchlist: Bool             { get }
-    @MainActor func loadDetail()                    async
+    @MainActor func loadDetail(symbol: String)      async
     @MainActor func toggleWatchlist()               async
     @MainActor func selectRange(_ range: TimeRange) async
 }
@@ -30,14 +30,14 @@ public protocol StockDetailViewModelProtocol: ObservableObject {
 
 public final class StockDetailViewModel: ObservableObject, StockDetailViewModelProtocol {
 
-    public let symbol: String
+    @Published public private(set) var symbol: String = ""
 
     private let fetchStockUseCase:           any FetchStockUseCaseProtocol
     private let fetchCompanyOverviewUseCase: any FetchCompanyOverviewUseCaseProtocol
     private let fetchTimeSeriesUseCase:      any FetchTimeSeriesUseCaseProtocol
-    private let fetchWatchlistUseCase:       any FetchWatchlistUseCaseProtocol
     private let addToWatchlistUseCase:       any AddToWatchlistUseCaseProtocol
     private let removeFromWatchlistUseCase:  any RemoveFromWatchlistUseCaseProtocol
+    private let cache:                       any StockCacheProtocol
     private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "StockDetail")
 
     @Published public private(set) var stock:         Stock?
@@ -49,49 +49,45 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
     @Published public private(set) var isInWatchlist: Bool             = false
 
     public init(
-        symbol:                      String,
         fetchStockUseCase:           any FetchStockUseCaseProtocol,
         fetchCompanyOverviewUseCase: any FetchCompanyOverviewUseCaseProtocol,
         fetchTimeSeriesUseCase:      any FetchTimeSeriesUseCaseProtocol,
-        fetchWatchlistUseCase:       any FetchWatchlistUseCaseProtocol,
         addToWatchlistUseCase:       any AddToWatchlistUseCaseProtocol,
-        removeFromWatchlistUseCase:  any RemoveFromWatchlistUseCaseProtocol
+        removeFromWatchlistUseCase:  any RemoveFromWatchlistUseCaseProtocol,
+        cache:                       any StockCacheProtocol
     ) {
-        self.symbol                      = symbol
         self.fetchStockUseCase           = fetchStockUseCase
         self.fetchCompanyOverviewUseCase = fetchCompanyOverviewUseCase
         self.fetchTimeSeriesUseCase      = fetchTimeSeriesUseCase
-        self.fetchWatchlistUseCase       = fetchWatchlistUseCase
         self.addToWatchlistUseCase       = addToWatchlistUseCase
         self.removeFromWatchlistUseCase  = removeFromWatchlistUseCase
+        self.cache                       = cache
     }
 
     // MARK: - Public
 
     @MainActor
-    public func loadDetail() async {
+    public func loadDetail(symbol: String) async {
         guard !isLoading else { return }
+        self.symbol = symbol
         isLoading = true
         error = nil
+        isInWatchlist = false
 
-        async let stockFetch     = loadStock()
-        async let overviewFetch  = loadOverview()
-        async let seriesFetch    = loadTimeSeries()
-        async let watchlistCheck = checkWatchlist()
+        async let stockFetch    = loadStock()
+        async let overviewFetch = loadOverview()
+        async let seriesFetch   = loadTimeSeries()
 
         let s = await stockFetch
         let o = await overviewFetch
         let p = await seriesFetch
-        let w = await watchlistCheck
 
-        stock         = s
-        overview      = o
-        pricePoints   = p
-        isInWatchlist = w
+        stock       = s
+        overview    = o
+        pricePoints = p
 
-        let stockSymbol  = symbol
-        let pointCount   = p.count
-        logger.debug("📈 Loaded: \(stockSymbol) — stock=\(s != nil), overview=\(o != nil), points=\(pointCount)")
+        let pointCount = p.count
+        logger.debug("📈 Loaded: \(symbol) — stock=\(s != nil), overview=\(o != nil), points=\(pointCount)")
 
         if stock == nil {
             error = "Unable to load \(symbol). Please check your connection."
@@ -144,8 +140,4 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
         (try? await fetchTimeSeriesUseCase.execute(symbol: symbol, range: range)) ?? []
     }
 
-    private func checkWatchlist() async -> Bool {
-        let items = (try? await fetchWatchlistUseCase.execute()) ?? []
-        return items.contains { $0.symbol == symbol }
-    }
 }

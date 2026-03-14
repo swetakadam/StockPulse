@@ -24,14 +24,20 @@ struct PriceChartView: View {
     @ViewBuilder
     private var chartBody: some View {
         if pricePoints.isEmpty {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.secondary.opacity(0.15))
-                .frame(height: 200)
-                .overlay(
-                    Text("No chart data")
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
-                )
+            VStack(spacing: 12) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.secondary)
+                Text("Chart data requires premium API")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("Real-time charts available with Finnhub premium")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
         } else {
             Chart(pricePoints) { point in
                 LineMark(

@@ -83,16 +83,15 @@ extension Container {
         }
     }
 
-    var stockDetailViewModel: ParameterFactory<String, StockDetailViewModel> {
-        self { symbol in
+    var stockDetailViewModel: Factory<StockDetailViewModel> {
+        self {
             StockDetailViewModel(
-                symbol:                      symbol,
                 fetchStockUseCase:           self.fetchStockUseCase(),
                 fetchCompanyOverviewUseCase: self.fetchCompanyOverviewUseCase(),
                 fetchTimeSeriesUseCase:      self.fetchTimeSeriesUseCase(),
-                fetchWatchlistUseCase:       self.fetchWatchlistUseCase(),
                 addToWatchlistUseCase:       self.addToWatchlistUseCase(),
-                removeFromWatchlistUseCase:  self.removeFromWatchlistUseCase()
+                removeFromWatchlistUseCase:  self.removeFromWatchlistUseCase(),
+                cache:                       self.stockCache()
             )
         }
     }

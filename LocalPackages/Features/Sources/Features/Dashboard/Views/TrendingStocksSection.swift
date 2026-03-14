@@ -29,8 +29,12 @@ struct TrendingStocksSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(stocks) { stock in
-                        TrendingStockCard(stock: stock)
-                            .onTapGesture { onStockTapped(stock.symbol) }
+                        Button {
+                            onStockTapped(stock.symbol)
+                        } label: {
+                            TrendingStockCard(stock: stock)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)

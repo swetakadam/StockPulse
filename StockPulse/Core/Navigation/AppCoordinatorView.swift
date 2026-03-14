@@ -14,36 +14,17 @@ struct AppCoordinatorView: View {
 
     var body: some View {
         TabView(selection: $coordinator.activeTab) {
-            NavigationStack(path: $coordinator.dashboardCoordinator.path) {
-                DashboardView(
-                    viewModel: Container.shared.dashboardViewModel(),
-                    onStockTapped: { symbol in
-                        coordinator.dashboardCoordinator.navigate(
-                            to: .stockDetail(symbol: symbol)
-                        )
-                    },
-                    onSeeAllWatchlist: {
-                        coordinator.dashboardCoordinator.navigate(to: .watchlist)
-                    }
-                )
-                .navigationDestination(for: AppRoute.self) { destinationView(for: $0) }
-            }
-            .tabItem { Label("Home",          systemImage: "chart.line.uptrend.xyaxis") }
-            .tag(AppCoordinator.AppTab.dashboard)
+            DashboardTab(coordinator: coordinator.dashboardCoordinator)
+                .tabItem { Label("Home", systemImage: "chart.line.uptrend.xyaxis") }
+                .tag(AppCoordinator.AppTab.dashboard)
 
-            NavigationStack(path: $coordinator.watchlistCoordinator.path) {
-                Text("Watchlist")
-                    .navigationDestination(for: AppRoute.self) { destinationView(for: $0) }
-            }
-            .tabItem { Label("Watchlist",     systemImage: "star.fill") }
-            .tag(AppCoordinator.AppTab.watchlist)
+            WatchlistTab(coordinator: coordinator.watchlistCoordinator)
+                .tabItem { Label("Watchlist", systemImage: "star.fill") }
+                .tag(AppCoordinator.AppTab.watchlist)
 
-            NavigationStack(path: $coordinator.searchCoordinator.path) {
-                Text("Search")
-                    .navigationDestination(for: AppRoute.self) { destinationView(for: $0) }
-            }
-            .tabItem { Label("Search",        systemImage: "magnifyingglass") }
-            .tag(AppCoordinator.AppTab.search)
+            SearchTab(coordinator: coordinator.searchCoordinator)
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                .tag(AppCoordinator.AppTab.search)
 
             NavigationStack {
                 Text("Notifications")
@@ -52,30 +33,90 @@ struct AppCoordinatorView: View {
             .tag(AppCoordinator.AppTab.notifications)
         }
         .fullScreenCover(isPresented: $coordinator.isShowingAuth) {
-            Text("Auth Flow")                           // replaced in Features phase
+            Text("Auth Flow")
         }
         .onOpenURL { url in
             coordinator.handleUniversalLink(url: url)
         }
     }
+}
 
-    // MARK: - Destination builder (placeholder — replaced per feature)
+// MARK: - Dashboard Tab
+// Isolated view — only redraws when dashboardCoordinator changes
+// @ObservedObject ensures path binding works without bubbling up
 
-    @ViewBuilder
-    private func destinationView(for route: AppRoute) -> some View {
-        switch route {
-        case .dashboard:
-            Text("Dashboard")
-        case .stockDetail(let symbol):
-            StockDetailView(viewModel: Container.shared.stockDetailViewModel(symbol), symbol: symbol)
-        case .search:
-            Text("Search")
-        case .watchlist:
+private struct DashboardTab: View {
+    @ObservedObject var coordinator: DashboardCoordinator
+    @StateObject private var viewModel = Container.shared.dashboardViewModel()
+
+    var body: some View {
+        NavigationStack(path: $coordinator.path) {
+            DashboardView(
+                viewModel: viewModel,
+                onStockTapped: { symbol in
+                    coordinator.navigate(to: .stockDetail(symbol: symbol))
+                },
+                onSeeAllWatchlist: {
+                    coordinator.navigate(to: .watchlist)
+                }
+            )
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .stockDetail(let symbol):
+                    StockDetailView(
+                        viewModel: Container.shared.stockDetailViewModel(),
+                        symbol: symbol
+                    )
+                default:
+                    EmptyView()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Watchlist Tab
+
+private struct WatchlistTab: View {
+    @ObservedObject var coordinator: WatchlistCoordinator
+
+    var body: some View {
+        NavigationStack(path: $coordinator.path) {
             Text("Watchlist")
-        case .notifications:
-            Text("Notifications")
-        case .notification:
-            Text("Notification Detail")
+                .navigationDestination(for: AppRoute.self) { route in
+                    switch route {
+                    case .stockDetail(let symbol):
+                        StockDetailView(
+                            viewModel: Container.shared.stockDetailViewModel(),
+                            symbol: symbol
+                        )
+                    default:
+                        EmptyView()
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Search Tab
+
+private struct SearchTab: View {
+    @ObservedObject var coordinator: SearchCoordinator
+
+    var body: some View {
+        NavigationStack(path: $coordinator.path) {
+            Text("Search")
+                .navigationDestination(for: AppRoute.self) { route in
+                    switch route {
+                    case .stockDetail(let symbol):
+                        StockDetailView(
+                            viewModel: Container.shared.stockDetailViewModel(),
+                            symbol: symbol
+                        )
+                    default:
+                        EmptyView()
+                    }
+                }
         }
     }
 }

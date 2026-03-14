@@ -76,13 +76,33 @@ public final class StockRepositoryImpl: StockRepositoryProtocol {
         watchlistStore.remove(symbol: symbol)
     }
 
-    // MARK: - Company Overview
+    // MARK: - Company Overview (profile + metrics, UserDefaults-cached)
 
     public func fetchCompanyOverview(symbol: String) async throws -> CompanyOverview {
-        let dto: FinnhubProfileDTO = try await apiClient.fetch(
+        let cacheKey = "overview_\(symbol)"
+        if let cached = UserDefaults.standard.data(forKey: cacheKey),
+           let overview = try? JSONDecoder().decode(CompanyOverview.self, from: cached) {
+            return overview
+        }
+
+        async let profileDTO: FinnhubProfileDTO = apiClient.fetch(
             endpoint: .overview(symbol: symbol)
         )
-        return StockMapper.toCompanyOverview(symbol: symbol, from: dto)
+        async let metricsResponse: FinnhubMetricsResponse = apiClient.fetch(
+            endpoint: .metrics(symbol: symbol)
+        )
+
+        let (profile, metrics) = try await (profileDTO, metricsResponse)
+        let overview = StockMapper.toCompanyOverview(
+            symbol: symbol,
+            profile: profile,
+            metrics: metrics.metric
+        )
+
+        if let data = try? JSONEncoder().encode(overview) {
+            UserDefaults.standard.set(data, forKey: cacheKey)
+        }
+        return overview
     }
 
     // MARK: - Daily Time Series

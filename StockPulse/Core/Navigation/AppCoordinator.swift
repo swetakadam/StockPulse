@@ -21,11 +21,11 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - Feature Coordinators
 
-    @Published var authCoordinator = AuthCoordinator()
-    @Published var dashboardCoordinator = DashboardCoordinator()
-    @Published var stockDetailCoordinator = StockDetailCoordinator()
-    @Published var watchlistCoordinator = WatchlistCoordinator()
-    @Published var searchCoordinator = SearchCoordinator()
+    var authCoordinator        = AuthCoordinator()
+    var dashboardCoordinator   = DashboardCoordinator()
+    var stockDetailCoordinator = StockDetailCoordinator()
+    var watchlistCoordinator   = WatchlistCoordinator()
+    var searchCoordinator      = SearchCoordinator()
 
     // MARK: - Root State
 

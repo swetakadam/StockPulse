@@ -16,6 +16,7 @@ public enum APIEndpoint {
     case search(query: String)
     case overview(symbol: String)    // maps to /stock/profile2 (same as profile)
     case timeSeries(symbol: String)  // daily candles for last 365 days
+    case metrics(symbol: String)     // /stock/metric?metric=all
 
     /// URL path appended to the base URL for each endpoint.
     public var path: String {
@@ -24,6 +25,7 @@ public enum APIEndpoint {
         case .profile, .overview:   return "/stock/profile2"
         case .candles, .timeSeries: return "/stock/candle"
         case .search:               return "/search"
+        case .metrics:              return "/stock/metric"
         }
     }
 
@@ -67,6 +69,12 @@ public enum APIEndpoint {
                 URLQueryItem(name: "resolution", value: "D"),
                 URLQueryItem(name: "from",       value: "\(from)"),
                 URLQueryItem(name: "to",         value: "\(to)")
+            ]
+
+        case .metrics(let symbol):
+            return [
+                URLQueryItem(name: "symbol", value: symbol),
+                URLQueryItem(name: "metric", value: "all")
             ]
         }
     }

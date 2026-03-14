@@ -42,24 +42,47 @@ enum StockMapper {
         )
     }
 
-    // MARK: - FinnhubProfileDTO → CompanyOverview
+    // MARK: - FinnhubProfileDTO + FinnhubMetricData → CompanyOverview
 
-    static func toCompanyOverview(symbol: String, from dto: FinnhubProfileDTO) -> CompanyOverview {
-        // Finnhub returns marketCapitalization in millions USD — convert to full value
-        let marketCap = (dto.marketCapitalization ?? 0) * 1_000_000
+    static func toCompanyOverview(
+        symbol: String,
+        profile: FinnhubProfileDTO,
+        metrics: FinnhubMetricData
+    ) -> CompanyOverview {
+
+        let marketCapStr: String = {
+            let value = (metrics.marketCapitalization ?? 0) * 1_000_000
+            if value >= 1_000_000_000_000 {
+                return String(format: "$%.1fT", value / 1_000_000_000_000)
+            } else if value >= 1_000_000_000 {
+                return String(format: "$%.1fB", value / 1_000_000_000)
+            }
+            return "$\(Int(value))"
+        }()
+
+        let avgVolumeStr: String = {
+            let value = (metrics.avgVolume10Day ?? 0) * 1_000_000
+            if value >= 1_000_000 {
+                return String(format: "%.1fM", value / 1_000_000)
+            } else if value >= 1_000 {
+                return String(format: "%.1fK", value / 1_000)
+            }
+            return String(format: "%.0f", value)
+        }()
 
         return CompanyOverview(
             symbol: symbol,
-            companyName: dto.name ?? symbol,
-            description: dto.weburl ?? "No description available.",
-            sector: dto.finnhubIndustry ?? "N/A",
-            industry: dto.finnhubIndustry ?? "N/A",
-            marketCap: marketCap,
-            peRatio: nil,         // not available from /stock/profile2
-            eps: nil,             // not available from /stock/profile2
-            week52High: 0,        // not available from /stock/profile2
-            week52Low: 0,         // not available from /stock/profile2
-            dividendYield: nil    // not available from /stock/profile2
+            companyName: profile.name ?? symbol,
+            description: profile.weburl ?? "No description available.",
+            sector: profile.finnhubIndustry ?? "N/A",
+            industry: profile.finnhubIndustry ?? "N/A",
+            marketCap: marketCapStr,
+            peRatio: metrics.peRatio.map { String(format: "%.1f", $0) } ?? "N/A",
+            weekHigh52: metrics.weekHigh52.map { String(format: "$%.2f", $0) } ?? "N/A",
+            weekLow52: metrics.weekLow52.map { String(format: "$%.2f", $0) } ?? "N/A",
+            eps: metrics.epsTTM.map { String(format: "$%.2f", $0) } ?? "N/A",
+            avgVolume: avgVolumeStr,
+            logoURL: profile.logo
         )
     }
 

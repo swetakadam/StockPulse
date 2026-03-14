@@ -21,8 +21,14 @@ public struct StockDetailView<ViewModel: StockDetailViewModelProtocol>: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                PriceHeaderView(stock: viewModel.stock)
-                    .padding(.horizontal)
+                PriceHeaderView(
+                    stock: viewModel.stock,
+                    isInWatchlist: viewModel.isInWatchlist,
+                    logoURL: viewModel.overview?.logoURL
+                ) {
+                    Task { await viewModel.toggleWatchlist() }
+                }
+                .padding(.horizontal)
 
                 PriceChartView(
                     pricePoints: viewModel.pricePoints,
@@ -41,18 +47,8 @@ public struct StockDetailView<ViewModel: StockDetailViewModelProtocol>: View {
             }
             .padding(.vertical)
         }
-        .navigationTitle(viewModel.stock?.companyName ?? symbol)
+        .navigationTitle(viewModel.overview?.companyName ?? symbol)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await viewModel.toggleWatchlist() }
-                } label: {
-                    Image(systemName: viewModel.isInWatchlist ? "star.fill" : "star")
-                        .foregroundStyle(viewModel.isInWatchlist ? .yellow : .primary)
-                }
-            }
-        }
         .overlay {
             if viewModel.isLoading {
                 ProgressView()
@@ -61,7 +57,7 @@ public struct StockDetailView<ViewModel: StockDetailViewModelProtocol>: View {
             }
         }
         .task {
-            await viewModel.loadDetail()
+            await viewModel.loadDetail(symbol: symbol)
         }
         .onChange(of: viewModel.error) { _, newValue in
             showError = newValue != nil
@@ -79,14 +75,14 @@ public struct StockDetailView<ViewModel: StockDetailViewModelProtocol>: View {
 #if DEBUG
 private final class MockStockDetailViewModel: ObservableObject, StockDetailViewModelProtocol {
     let symbol: String = "AAPL"
-    @Published var stock: Stock?           = .mockAAPL
+    @Published var stock: Stock?              = .mockAAPL
     @Published var overview: CompanyOverview? = .mockAAPL
     @Published var pricePoints: [PricePoint]  = PricePoint.mockList
     @Published var selectedRange: TimeRange   = .oneMonth
     @Published var isLoading: Bool            = false
     @Published var error: String?             = nil
     @Published var isInWatchlist: Bool        = false
-    func loadDetail()                    async {}
+    func loadDetail(symbol: String)      async {}
     func toggleWatchlist()               async {}
     func selectRange(_ range: TimeRange) async { selectedRange = range }
 }

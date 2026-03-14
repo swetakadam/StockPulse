@@ -34,18 +34,20 @@ public enum TimeRange: String, CaseIterable, Identifiable {
 
 // MARK: - CompanyOverview
 
-public struct CompanyOverview: Equatable {
+public struct CompanyOverview: Codable, Identifiable, Equatable {
+    public var id: String { symbol }
     public let symbol: String
     public let companyName: String
     public let description: String
     public let sector: String
     public let industry: String
-    public let marketCap: Double
-    public let peRatio: Double?
-    public let eps: Double?
-    public let week52High: Double
-    public let week52Low: Double
-    public let dividendYield: Double?
+    public let marketCap: String
+    public let peRatio: String
+    public let weekHigh52: String
+    public let weekLow52: String
+    public let eps: String
+    public let avgVolume: String
+    public let logoURL: String?
 
     public init(
         symbol: String,
@@ -53,24 +55,26 @@ public struct CompanyOverview: Equatable {
         description: String,
         sector: String,
         industry: String,
-        marketCap: Double,
-        peRatio: Double?,
-        eps: Double?,
-        week52High: Double,
-        week52Low: Double,
-        dividendYield: Double?
+        marketCap: String,
+        peRatio: String,
+        weekHigh52: String,
+        weekLow52: String,
+        eps: String,
+        avgVolume: String,
+        logoURL: String?
     ) {
-        self.symbol        = symbol
-        self.companyName   = companyName
-        self.description   = description
-        self.sector        = sector
-        self.industry      = industry
-        self.marketCap     = marketCap
-        self.peRatio       = peRatio
-        self.eps           = eps
-        self.week52High    = week52High
-        self.week52Low     = week52Low
-        self.dividendYield = dividendYield
+        self.symbol      = symbol
+        self.companyName = companyName
+        self.description = description
+        self.sector      = sector
+        self.industry    = industry
+        self.marketCap   = marketCap
+        self.peRatio     = peRatio
+        self.weekHigh52  = weekHigh52
+        self.weekLow52   = weekLow52
+        self.eps         = eps
+        self.avgVolume   = avgVolume
+        self.logoURL     = logoURL
     }
 }
 
@@ -83,12 +87,13 @@ public extension CompanyOverview {
         description: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The Company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories.",
         sector: "Technology",
         industry: "Consumer Electronics",
-        marketCap: 2_940_000_000_000,
-        peRatio: 28.5,
-        eps: 6.57,
-        week52High: 199.62,
-        week52Low: 164.08,
-        dividendYield: 0.0051
+        marketCap: "$2.8T",
+        peRatio: "28.5",
+        weekHigh52: "$199.62",
+        weekLow52: "$164.08",
+        eps: "$6.43",
+        avgVolume: "58.2M",
+        logoURL: "https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/AAPL.png"
     )
 }
 
