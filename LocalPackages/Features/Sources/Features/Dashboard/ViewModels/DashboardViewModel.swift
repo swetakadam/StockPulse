@@ -8,6 +8,7 @@
 import Foundation
 import Domain
 import Combine
+import OSLog
 
 // MARK: - MarketIndex
 
@@ -52,7 +53,9 @@ public final class DashboardViewModel: ObservableObject, DashboardViewModelProto
 
     private let fetchStockUseCase:     any FetchStockUseCaseProtocol
     private let fetchWatchlistUseCase: any FetchWatchlistUseCaseProtocol
-
+    private let cache:                 any StockCacheProtocol
+    private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "Dashboard")
+    
     @Published public private(set) var marketIndices:   [MarketIndex] = MarketIndex.mockList
     @Published public private(set) var trendingStocks:  [Stock]       = []
     @Published public private(set) var watchlistStocks: [Stock]       = []
@@ -67,59 +70,151 @@ public final class DashboardViewModel: ObservableObject, DashboardViewModelProto
 
     public init(
         fetchStockUseCase:     any FetchStockUseCaseProtocol,
-        fetchWatchlistUseCase: any FetchWatchlistUseCaseProtocol
+        fetchWatchlistUseCase: any FetchWatchlistUseCaseProtocol,
+        cache:                 any StockCacheProtocol
     ) {
         self.fetchStockUseCase     = fetchStockUseCase
         self.fetchWatchlistUseCase = fetchWatchlistUseCase
+        self.cache                 = cache
     }
 
     // MARK: - Public
 
+    /// Prevents reloading when switching tabs.
+    /// Cache layer handles data freshness.
+    /// Pull-to-refresh bypasses this via refreshDashboard().
+    private var hasLoadedOnce = false
+
     @MainActor
     public func loadDashboard() async {
-        guard !isLoading else { return }
+        guard !isLoading, !hasLoadedOnce else { return }
+        hasLoadedOnce = true
         isLoading = true
         error = nil
 
-        async let trending  = fetchStocks(symbols: trendingSymbols)
-        async let gainers   = fetchStocks(symbols: gainerSymbols)
-        async let losers    = fetchStocks(symbols: loserSymbols)
-        async let watchlist = fetchWatchlistStocks()
+        // Phase 1: Populate from cache instantly — silent, no spinner change
+        await loadFromCacheInstantly()
 
-        let (t, g, l, w) = await (trending, gainers, losers, watchlist)
-        trendingStocks  = t
-        topGainers      = g
-        topLosers       = l
-        watchlistStocks = w
+        // If cache had data — hide spinner now.
+        // Phase 2 will update arrays quietly in background.
+        if !trendingStocks.isEmpty {
+            isLoading = false
+        }
 
-        if t.isEmpty && g.isEmpty && l.isEmpty {
+        // Phase 2: Fetch network for any cache misses.
+        // UI already showing cached data — updates arrive silently.
+        if policy.useConcurrentFetching {
+            // Premium tier: all groups concurrent
+            async let t = fetchStocks(symbols: trendingSymbols)
+            async let g = fetchStocks(symbols: gainerSymbols)
+            async let l = fetchStocks(symbols: loserSymbols)
+            async let w = fetchWatchlistStocks()
+            let (trending, gainers, losers, watchlist) = await (t, g, l, w)
+            trendingStocks  = trending
+            topGainers      = gainers
+            topLosers       = losers
+            watchlistStocks = watchlist
+        } else {
+            // Free tier: sequential — stocks update one by one as
+            // network responses arrive. No spinner — data already visible.
+            trendingStocks  = await fetchStocks(symbols: trendingSymbols)
+            topGainers      = await fetchStocks(symbols: gainerSymbols)
+            topLosers       = await fetchStocks(symbols: loserSymbols)
+            watchlistStocks = await fetchWatchlistStocks()
+        }
+
+        let trendingCount  = trendingStocks.count
+        let gainersCount   = topGainers.count
+        let losersCount    = topLosers.count
+        let watchlistCount = watchlistStocks.count
+        logger.debug("📊 Trending count: \(trendingCount)")
+        logger.debug("📊 Gainers count: \(gainersCount)")
+        logger.debug("📊 Losers count: \(losersCount)")
+        logger.debug("📊 Watchlist count: \(watchlistCount)")
+
+        if trendingStocks.isEmpty && topGainers.isEmpty && topLosers.isEmpty {
             error = "Unable to load market data. Please check your connection."
         }
+
+        // Always false when fully done — covers case where Phase 1
+        // cache was empty and spinner stayed visible through Phase 2.
         isLoading = false
     }
 
+    /// Pull-to-refresh — forces fresh network data.
+    /// Invalidates ALL cached stocks so Phase 1 finds nothing
+    /// and Phase 2 fetches everything from network.
     @MainActor
     public func refreshDashboard() async {
-        isLoading = false           // reset guard so refresh always fires
+        cache.invalidateAll()  // clear cache so network is forced
+        hasLoadedOnce = false
+        isLoading = false
         await loadDashboard()
     }
 
-    // MARK: - Private helpers
+    // MARK: - Stock Fetching
+
+    private let policy: CachePolicy = .current
+
+    /// Phase 1: Populate arrays from cache only — no network calls.
+    /// Does NOT touch isLoading — spinner state managed by loadDashboard().
+    /// Completes in microseconds for warm cache.
+    @MainActor
+    private func loadFromCacheInstantly() async {
+        // Use concurrent async let — all from memory/disk, no network
+        async let t = fetchStocks(symbols: trendingSymbols)
+        async let g = fetchStocks(symbols: gainerSymbols)
+        async let l = fetchStocks(symbols: loserSymbols)
+        async let w = fetchWatchlistStocks()
+        let (trending, gainers, losers, watchlist) = await (t, g, l, w)
+
+        trendingStocks  = trending
+        topGainers      = gainers
+        topLosers       = losers
+        watchlistStocks = watchlist
+    }
 
     private func fetchStocks(symbols: [String]) async -> [Stock] {
-        await withTaskGroup(of: Stock?.self) { group in
-            for symbol in symbols {
+        policy.useConcurrentFetching
+            ? await fetchStocksConcurrently(symbols: symbols)
+            : await fetchStocksSequentially(symbols: symbols)
+    }
+
+    /// Premium tier: concurrent fetching with TaskGroup.
+    /// Fast but hits rate limits on free tier.
+    private func fetchStocksConcurrently(symbols: [String]) async -> [Stock] {
+        await withTaskGroup(of: (Int, Stock?).self) { group in
+            for (index, symbol) in symbols.enumerated() {
                 group.addTask { [weak self] in
-                    guard let self else { return nil }
-                    return try? await self.fetchStockUseCase.execute(symbol: symbol)
+                    guard let self else { return (index, nil) }
+                    let stock = try? await self.fetchStockUseCase.execute(symbol: symbol)
+                    return (index, stock)
                 }
             }
-            var results: [Stock] = []
-            for await stock in group {
-                if let stock { results.append(stock) }
+            var results: [(Int, Stock)] = []
+            for await (index, stock) in group {
+                if let stock { results.append((index, stock)) }
             }
             return results
+                .sorted { $0.0 < $1.0 }
+                .map(\.1)
         }
+    }
+
+    /// Free tier: sequential with delay between requests.
+    /// With 24hr cache, each symbol costs 1 API call only on
+    /// first load per day. Subsequent loads served from cache instantly.
+    private func fetchStocksSequentially(symbols: [String]) async -> [Stock] {
+        var results: [Stock] = []
+        for symbol in symbols {
+            if let stock = try? await fetchStockUseCase.execute(symbol: symbol) {
+                results.append(stock)
+            }
+            if policy.requestDelay > 0 {
+                try? await Task.sleep(nanoseconds: policy.requestDelay)
+            }
+        }
+        return results
     }
 
     private func fetchWatchlistStocks() async -> [Stock] {

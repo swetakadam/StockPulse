@@ -35,6 +35,7 @@ struct TrendingStocksSection: View {
                 }
                 .padding(.horizontal)
             }
+            .frame(height: 180)
         }
     }
 }

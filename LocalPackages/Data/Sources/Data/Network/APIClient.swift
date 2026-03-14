@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 // MARK: - Protocol
 
@@ -18,10 +19,11 @@ public protocol APIClientProtocol {
 public final class AlphaVantageClient: APIClientProtocol {
     private let baseURL: String
     private let apiKey: String
+    private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "Network")
 
     /// Reads credentials from Info.plist (populated via xcconfig).
-    public init() throws {
-        let info = Bundle.main.infoDictionary
+    public init(bundle: Bundle = .main) throws {
+        let info = bundle.infoDictionary
         guard
             let key = info?["ALPHAVANTAGE_API_KEY"] as? String, !key.isEmpty
         else {
@@ -49,11 +51,15 @@ public final class AlphaVantageClient: APIClientProtocol {
             throw NetworkError.invalidURL
         }
 
+        let request = URLRequest(url: url)
+        logAsCurl(request)
+
         // 2. Execute request
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: URLRequest(url: url))
+            (data, response) = try await URLSession.shared.data(for: request)
         } catch {
+            logger.error("❌ NETWORK ERROR: \(error.localizedDescription)")
             throw NetworkError.invalidResponse
         }
 
@@ -67,6 +73,7 @@ public final class AlphaVantageClient: APIClientProtocol {
             case 500...599: throw NetworkError.serverError(statusCode: http.statusCode)
             default:        throw NetworkError.invalidResponse
             }
+            logger.debug("✅ RESPONSE \(http.statusCode): \(url.absoluteString)")
         }
 
         // 4. Decode
@@ -77,5 +84,18 @@ public final class AlphaVantageClient: APIClientProtocol {
         } catch {
             throw NetworkError.decodingError(error.localizedDescription)
         }
+    }
+
+    private func logAsCurl(_ request: URLRequest) {
+        guard let url = request.url else { return }
+        let redactedURL = url.absoluteString
+            .replacingOccurrences(of: apiKey, with: "[REDACTED]")
+        var parts = ["curl -X \(request.httpMethod ?? "GET")"]
+        request.allHTTPHeaderFields?.forEach { key, value in
+            let safeValue = key.lowercased() == "authorization" ? "[REDACTED]" : value
+            parts.append("-H '\(key): \(safeValue)'")
+        }
+        parts.append("'\(redactedURL)'")
+        logger.debug("🌐 REQUEST\n\(parts.joined(separator: " \\\n  "))")
     }
 }

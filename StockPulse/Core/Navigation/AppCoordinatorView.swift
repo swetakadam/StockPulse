@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Factory
+import Features
 
 struct AppCoordinatorView: View {
     @EnvironmentObject var coordinator: AppCoordinator
@@ -13,8 +15,18 @@ struct AppCoordinatorView: View {
     var body: some View {
         TabView(selection: $coordinator.activeTab) {
             NavigationStack(path: $coordinator.dashboardCoordinator.path) {
-                Text("Dashboard")                       // replaced in Features phase
-                    .navigationDestination(for: AppRoute.self) { destinationView(for: $0) }
+                DashboardView(
+                    viewModel: Container.shared.dashboardViewModel(),
+                    onStockTapped: { symbol in
+                        coordinator.dashboardCoordinator.navigate(
+                            to: .stockDetail(symbol: symbol)
+                        )
+                    },
+                    onSeeAllWatchlist: {
+                        coordinator.dashboardCoordinator.navigate(to: .watchlist)
+                    }
+                )
+                .navigationDestination(for: AppRoute.self) { destinationView(for: $0) }
             }
             .tabItem { Label("Home",          systemImage: "chart.line.uptrend.xyaxis") }
             .tag(AppCoordinator.AppTab.dashboard)

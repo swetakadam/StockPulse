@@ -14,7 +14,7 @@ struct GlassCardModifier: ViewModifier {
         Group {
             if #available(iOS 26, *) {
                 content
-                    .glassEffect()
+                    .glassEffect(.regular.tint(.clear), in: RoundedRectangle(cornerRadius: 16))
             } else {
                 content
                     .background(.ultraThinMaterial)

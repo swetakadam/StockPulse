@@ -10,14 +10,14 @@ import Domain
 
 // MARK: - DashboardView
 
-struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
-    @StateObject var viewModel: ViewModel
+public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
+    @StateObject private var viewModel: ViewModel
 
     /// Navigation closures — wired by AppCoordinatorView in the main target.
     var onStockTapped:     (String) -> Void = { _ in }
     var onSeeAllWatchlist: () -> Void       = {}
 
-    init(
+    public init(
         viewModel: ViewModel,
         onStockTapped:     @escaping (String) -> Void = { _ in },
         onSeeAllWatchlist: @escaping () -> Void       = {}
@@ -29,7 +29,7 @@ struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
 
     // MARK: - Body
 
-    var body: some View {
+    public var body: some View {
         Group {
             if viewModel.isLoading {
                 ProgressView()

@@ -15,12 +15,21 @@ extension Container {
 
     // MARK: - Network
     var apiClient: Factory<APIClientProtocol> {
-        self { try! AlphaVantageClient() }
+        self { try! AlphaVantageClient(bundle: Bundle.main) }
     }
+
 
     // MARK: - Persistence
     var watchlistStore: Factory<WatchlistStoreProtocol> {
         self { UserDefaultsWatchlistStore() }
+    }
+
+    /// Cache — singleton scope so same instance is shared across the app.
+    /// Factory manages lifecycle (not a Swift static singleton).
+    /// To use mock in tests: Container.shared.stockCache.register { MockStockCache() }
+    var stockCache: Factory<StockCacheProtocol> {
+        self { StockCache() }
+            .singleton
     }
 
     // MARK: - Repositories
@@ -28,7 +37,8 @@ extension Container {
         self {
             StockRepositoryImpl(
                 apiClient: self.apiClient(),
-                watchlistStore: self.watchlistStore()
+                watchlistStore: self.watchlistStore(),
+                cache: self.stockCache()
             )
         }
     }
@@ -59,7 +69,8 @@ extension Container {
         self {
             DashboardViewModel(
                 fetchStockUseCase:     self.fetchStockUseCase(),
-                fetchWatchlistUseCase: self.fetchWatchlistUseCase()
+                fetchWatchlistUseCase: self.fetchWatchlistUseCase(),
+                cache:                 self.stockCache()
             )
         }
     }

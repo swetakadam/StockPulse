@@ -1,1 +1,1 @@
-ALPHAVANTAGE_BASE_URL = https://www.alphavantage.co/query
+ALPHAVANTAGE_BASE_URL=https:/$()/www.alphavantage.co/query

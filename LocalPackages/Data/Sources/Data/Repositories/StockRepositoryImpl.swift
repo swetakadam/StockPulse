@@ -11,10 +11,16 @@ import Domain
 public final class StockRepositoryImpl: StockRepositoryProtocol {
     private let apiClient: APIClientProtocol
     private let watchlistStore: WatchlistStoreProtocol
+    private let cache: StockCacheProtocol
 
-    public init(apiClient: APIClientProtocol, watchlistStore: WatchlistStoreProtocol) {
+    public init(
+        apiClient: APIClientProtocol,
+        watchlistStore: WatchlistStoreProtocol,
+        cache: StockCacheProtocol
+    ) {
         self.apiClient = apiClient
         self.watchlistStore = watchlistStore
+        self.cache = cache
     }
 
     // MARK: - Quote
@@ -29,31 +35,28 @@ public final class StockRepositoryImpl: StockRepositoryProtocol {
         return quote
     }
 
-    // MARK: - Stocks (concurrent batch)
+    // MARK: - Stocks (cache-first)
 
     public func fetchStocks(symbols: [String]) async throws -> [Stock] {
-        var stocks: [Stock] = []
-
-        try await withThrowingTaskGroup(of: Stock?.self) { group in
-            for symbol in symbols {
-                group.addTask {
-                    do {
-                        let response: GlobalQuoteResponse = try await self.apiClient.fetch(
-                            endpoint: .globalQuote(symbol: symbol)
-                        )
-                        return StockMapper.toStock(from: response.globalQuote)
-                    } catch {
-                        return nil      // skip individual failures
-                    }
-                }
-            }
-            for try await result in group {
-                if let stock = result { stocks.append(stock) }
+        var results: [(Int, Stock)] = []
+        for (index, symbol) in symbols.enumerated() {
+            if let cached = cache.stock(for: symbol) {
+                results.append((index, cached))
+            } else if let stock = try? await fetchStockFromNetwork(symbol: symbol) {
+                cache.save(stock)
+                results.append((index, stock))
             }
         }
+        guard !results.isEmpty else { throw NetworkError.emptyResponse }
+        return results.sorted { $0.0 < $1.0 }.map(\.1)
+    }
 
-        guard !stocks.isEmpty else { throw NetworkError.emptyResponse }
-        return stocks
+    private func fetchStockFromNetwork(symbol: String) async throws -> Stock {
+        let response: GlobalQuoteResponse = try await apiClient.fetch(
+            endpoint: .globalQuote(symbol: symbol)
+        )
+        let stock = StockMapper.toStock(from: response.globalQuote)
+        return stock
     }
 
     // MARK: - Search
