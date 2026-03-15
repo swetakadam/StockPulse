@@ -17,6 +17,7 @@ final class AppCoordinator: ObservableObject {
         case watchlist
         case search
         case notifications
+        case assistant
     }
 
     // MARK: - Feature Coordinators
@@ -103,6 +104,7 @@ final class AppCoordinator: ObservableObject {
         case .watchlist:     return watchlistCoordinator
         case .search:        return searchCoordinator
         case .notifications: return dashboardCoordinator
+        case .assistant:     return dashboardCoordinator
         }
     }
 
@@ -110,8 +112,20 @@ final class AppCoordinator: ObservableObject {
         NavigationStateManager.shared.$pendingRoute
             .compactMap { $0 }
             .sink { [weak self] route in
-                self?.activeCoordinator.navigate(to: route)
-                NavigationStateManager.shared.clearAll()
+                guard let self else { return }
+                switch route {
+                case .stockDetail:
+                    // Switch to dashboard tab first, then navigate
+                    self.activeTab = .dashboard
+                    // Brief delay allows NavigationStack to become active
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self.dashboardCoordinator.navigate(to: route)
+                        NavigationStateManager.shared.clearAll()
+                    }
+                default:
+                    self.activeCoordinator.navigate(to: route)
+                    NavigationStateManager.shared.clearAll()
+                }
             }
             .store(in: &cancellables)
 

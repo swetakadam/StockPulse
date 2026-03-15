@@ -143,4 +143,18 @@ extension Container {
             )
         }
     }
+
+    // MARK: - AI Assistant ViewModel
+
+    var aiAssistantViewModel: Factory<AIAssistantViewModel> {
+        self {
+            AIAssistantViewModel(
+                fetchStockUseCase:          self.fetchStockUseCase(),
+                searchStocksUseCase:        self.searchStocksUseCase(),
+                fetchWatchlistUseCase:      self.fetchWatchlistUseCase(),
+                addToWatchlistUseCase:      self.addToWatchlistUseCase(),
+                removeFromWatchlistUseCase: self.removeFromWatchlistUseCase()
+            )
+        }
+    }
 }

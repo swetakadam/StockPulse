@@ -52,5 +52,15 @@
     <string>$(FINNHUB_API_KEY)</string>
     <key>FINNHUB_BASE_URL</key>
     <string>$(FINNHUB_BASE_URL)</string>
+    <key>APIM_ENDPOINT</key>
+    <string>$(APIM_ENDPOINT)</string>
+    <key>APIM_SUBSCRIPTION_KEY</key>
+    <string>$(APIM_SUBSCRIPTION_KEY)</string>
+    <key>WEBRTC_ENDPOINT</key>
+    <string>$(WEBRTC_ENDPOINT)</string>
+    <key>REALTIME_DEPLOYMENT</key>
+    <string>$(REALTIME_DEPLOYMENT)</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>StockPulse uses your microphone to let you speak to the stock assistant.</string>
 </dict>
 </plist>

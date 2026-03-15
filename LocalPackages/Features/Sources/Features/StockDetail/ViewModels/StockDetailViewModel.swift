@@ -10,6 +10,12 @@ import Domain
 import Combine
 import OSLog
 
+// MARK: - Notification Name
+
+public extension Notification.Name {
+    static let watchlistDidChange = Notification.Name("watchlistDidChange")
+}
+
 // MARK: - Protocol
 
 public protocol StockDetailViewModelProtocol: ObservableObject {
@@ -69,10 +75,15 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
 
     // MARK: - Public
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     @MainActor
     public func loadDetail(symbol: String) async {
         guard !isLoading else { return }
         self.symbol = symbol
+        observeWatchlistChanges()
         isLoading = true
         error = nil
         isInWatchlist = false
@@ -131,6 +142,23 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
     }
 
     // MARK: - Private helpers
+
+    private func observeWatchlistChanges() {
+        NotificationCenter.default.addObserver(
+            forName: .watchlistDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let userInfo = notification.userInfo,
+                  let symbol = userInfo["symbol"] as? String,
+                  symbol == self.symbol,
+                  let action = userInfo["action"] as? String
+            else { return }
+
+            self.isInWatchlist = (action == "added")
+        }
+    }
 
     private func loadStock() async -> Stock? {
         try? await fetchStockUseCase.execute(symbol: symbol)

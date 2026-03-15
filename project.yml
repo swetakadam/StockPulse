@@ -29,6 +29,9 @@ packages:
     path: LocalPackages/Data
   Features:
     path: LocalPackages/Features
+  WebRTC:
+    url: https://github.com/stasel/WebRTC.git
+    from: "114.0.0"
 
 targets:
   StockPulse:
@@ -47,6 +50,7 @@ targets:
       - package: Domain
       - package: Data
       - package: Features
+      - package: WebRTC
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sweta.stockpulse

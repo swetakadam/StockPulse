@@ -26,6 +26,10 @@ struct AppCoordinatorView: View {
                 .tabItem { Label("Search", systemImage: "magnifyingglass") }
                 .tag(AppCoordinator.AppTab.search)
 
+            AssistantTab()
+                .tabItem { Label("Assistant", systemImage: "waveform.circle.fill") }
+                .tag(AppCoordinator.AppTab.assistant)
+
             NavigationStack {
                 Text("Notifications")
             }
@@ -104,6 +108,18 @@ private struct WatchlistTab: View {
                     EmptyView()
                 }
             }
+        }
+    }
+}
+
+// MARK: - Assistant Tab
+
+private struct AssistantTab: View {
+    @StateObject private var viewModel = Container.shared.aiAssistantViewModel()
+
+    var body: some View {
+        NavigationStack {
+            AIAssistantView(viewModel: viewModel)
         }
     }
 }

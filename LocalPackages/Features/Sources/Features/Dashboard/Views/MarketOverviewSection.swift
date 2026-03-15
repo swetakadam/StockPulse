@@ -37,8 +37,12 @@ struct MarketOverviewSection: View {
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal)
+                .padding(.vertical, 8)  //add this to prevent clipping
+                
+
             }
             .scrollTargetBehavior(.viewAligned)
+            .clipped(antialiased: false)
         }
     }
 }
