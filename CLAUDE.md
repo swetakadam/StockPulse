@@ -1,253 +1,520 @@
-# StockPulse - Claude Code Guidelines
+# StockPulse — Claude Code Guidelines
 
 ## Product Vision
 StockPulse is a production-grade iOS stock market app for tracking
 stocks, viewing price charts, and managing a personal watchlist.
+Built as a learning project and architecture template for LoopNet.
 Min deployment: iOS 17. Swift 5.9+. SwiftUI only, no UIKit.
 Bundle ID: com.sweta.stockpulse
+
+---
+
+## ✅ Current Status (March 2026)
+
+### Completed Phases
+| Phase | Feature | Status |
+|-------|---------|--------|
+| 1 | Project Setup (XcodeGen, xcconfig, SPM) | ✅ |
+| 2 | Domain Layer (Models, UseCases, Protocols) | ✅ |
+| 3 | Data Layer (Network, Cache, Persistence) | ✅ |
+| 4 | Navigation (Coordinators, Deep Links) | ✅ |
+| 5 | Dashboard (Market overview, Trending, Movers) | ✅ |
+| 6 | Stock Detail (Price, Stats, Company Info) | ✅ |
+| 7 | Search (Debounced, Recent, Trending) | ✅ |
+| 8 | Watchlist (List, Sort, Swipe Delete) | ✅ |
+| 9 | Polish and Testing | 🔄 In Progress |
+
+### API
+- Provider: Finnhub (https://finnhub.io)
+- Free tier: 60 calls/minute
+- Auth: token query parameter via xcconfig
+- Cache: 24hr TTL (free tier) / 60s TTL (premium tier)
+- Switch provider: change CachePolicy.current in Domain
 
 ---
 
 ## Architecture: MVVM + Clean Architecture
 
 ### Dependency Flow
-SwiftUI View → ViewModel → Use Case Protocol → Use Case Implementation → Repository Protocol → Repository Implementation
+```
+SwiftUI View
+    ↓
+ViewModel (ObservableObject, constructor injection)
+    ↓
+Use Case Protocol (Domain)
+    ↓
+Use Case Implementation (Domain, pure Swift)
+    ↓
+Repository Protocol (Domain)
+    ↓
+Repository Implementation (Data)
+    ↓
+APIClient / Cache / Store (Data)
+```
 
-### Rules
+### Golden Rules
 - Views contain ZERO business logic
-- ViewModels call Use Case protocols only, never Repositories directly
-- Use Case implementations live in Domain — pure Swift, zero framework imports
-- Use Case implementations depend ONLY on Repository protocols
-- Repository protocols live in Domain, implementations live in Data
-- No import of Data layer inside Features package
-- No circular dependencies between packages
-- Core lives inside main app target
+- ViewModels use constructor injection — NO @Injected in Features package
+- Use Case implementations: pure Swift, zero framework imports
+- DTOs never leave the Data layer — always map to Domain models
+- Features never import Data directly
+- Domain never imports Data or Features
+- Factory manages all DI — no Swift singletons
 
 ---
 
 ## Project Structure
 ```
-StockPulse/                              # Project root
-├── project.yml                          # XcodeGen — source of truth for .xcodeproj
+StockPulse/
+├── project.yml                          # XcodeGen source of truth
 ├── CLAUDE.md                            # This file
+├── README.md                            # Architecture docs
 ├── Configurations/
-│   ├── Base.xcconfig                    # Shared settings
-│   ├── Debug.xcconfig                   # Dev API key, full logging
-│   ├── Staging.xcconfig                 # Staging API key, limited logging
-│   └── Release.xcconfig                 # Prod API key, no logging
+│   ├── Base.xcconfig                    # FINNHUB_BASE_URL
+│   ├── Debug.xcconfig                   # Dev keys
+│   ├── Staging.xcconfig                 # Staging keys
+│   ├── Release.xcconfig                 # Prod keys
+│   └── Secrets.xcconfig                 # GITIGNORED — real keys
 │
 ├── LocalPackages/
-│   ├── Domain/                          # Package 1 — zero external dependencies
-│   │   ├── Package.swift
+│   ├── Domain/                          # Zero external dependencies
 │   │   └── Sources/Domain/
-│   │       ├── Models/                  # Stock, Quote, WatchlistItem, User
-│   │       ├── Repositories/            # Protocols only: StockRepositoryProtocol
-│   │       └── UseCases/
-│   │           ├── Protocols/           # FetchStockUseCaseProtocol, etc.
-│   │           └── Implementations/     # FetchStockUseCase (pure Swift, no frameworks)
-│   │                                    # Depends ONLY on Repository protocols
-│   ├── Data/                            # Package 2 — depends on Domain
-│   │   ├── Package.swift
-│   │   └── Sources/Data/
-│   │       ├── Repositories/            # StockRepositoryImpl, etc.
-│   │       ├── Network/                 # APIClient, Endpoints, DTOs
-│   │       ├── Persistence/             # SwiftData / UserDefaults
-│   │       └── Mappers/                 # DTO → Domain Model mappers
+│   │       ├── Models/
+│   │       │   ├── Stock.swift
+│   │       │   ├── Quote.swift
+│   │       │   ├── WatchlistItem.swift
+│   │       │   ├── CompanyOverview.swift
+│   │       │   └── RecentSearch.swift
+│   │       ├── Repositories/
+│   │       │   ├── StockRepositoryProtocol.swift
+│   │       │   └── RecentSearchRepositoryProtocol.swift
+│   │       ├── UseCases/Protocols/
+│   │       ├── UseCases/Implementations/
+│   │       ├── CachePolicy.swift
+│   │       └── StockCacheProtocol.swift
 │   │
-│   └── Features/                        # Package 3 — depends on Domain
-│       ├── Package.swift
+│   ├── Data/                            # Depends on Domain + Factory
+│   │   └── Sources/Data/
+│   │       ├── Network/
+│   │       │   ├── APIClient.swift      # FinnhubClient
+│   │       │   ├── APIEndpoint.swift
+│   │       │   └── DTOs/               # Internal — never leave Data
+│   │       ├── Mappers/
+│   │       │   └── StockMapper.swift
+│   │       ├── Persistence/
+│   │       │   ├── StockCache.swift
+│   │       │   ├── WatchlistStore.swift
+│   │       │   └── RecentSearchStore.swift
+│   │       └── Repositories/
+│   │           └── StockRepositoryImpl.swift
+│   │
+│   └── Features/                        # Depends on Domain + Factory
 │       └── Sources/Features/
-│           ├── Auth/
-│           │   ├── Views/
-│           │   └── ViewModels/
 │           ├── Dashboard/
 │           │   ├── Views/
 │           │   └── ViewModels/
 │           ├── StockDetail/
 │           │   ├── Views/
 │           │   └── ViewModels/
-│           ├── Watchlist/
-│           │   ├── Views/
-│           │   └── ViewModels/
 │           ├── Search/
 │           │   ├── Views/
 │           │   └── ViewModels/
-│           └── Notifications/
+│           └── Watchlist/
 │               ├── Views/
 │               └── ViewModels/
 │
 └── StockPulse/                          # Main app target
-    ├── StockPulseApp.swift              # @main, bootstraps DI + Navigation
+    ├── StockPulseApp.swift
     ├── Info.plist
     ├── Assets.xcassets
-    └── Core/                            # Inside main app target
-        ├── Navigation/                  # AppCoordinator, RouterProtocol, AppRoute
-        ├── DI/                          # AppContainer, Factory registrations
-        ├── DesignSystem/                # Colors, Typography, Components
-        └── Utilities/                   # Extensions, Constants
+    └── Core/
+        ├── Navigation/
+        │   ├── AppCoordinator.swift
+        │   ├── AppCoordinatorView.swift
+        │   ├── AppRoute.swift
+        │   ├── AppRoute.swift
+        │   ├── CoordinatorProtocol.swift
+        │   ├── RouterProtocol.swift
+        │   ├── NavigationStateManager.swift
+        │   ├── VoiceIntent.swift
+        │   ├── SheetRoute.swift
+        │   ├── AuthCoordinator.swift
+        │   ├── DashboardCoordinator.swift
+        │   ├── SearchCoordinator.swift
+        │   ├── WatchlistCoordinator.swift
+        │   ├── StockDetailCoordinator.swift
+        │   └── SheetCoordinator.swift
+        ├── DI/
+        │   └── AppContainer.swift       # ALL Factory registrations
+        ├── DesignSystem/
+        └── Utilities/
 ```
 
 ---
 
-## Package Dependency Rules
-```
-Domain     ←── Data        (Data imports Domain)
-Domain     ←── Features    (Features imports Domain)
-Domain     ←── Core        (Core imports Domain)
-Factory    ←── Data        (Data uses Factory)
-Factory    ←── Features    (Features uses Factory)
-Factory    ←── Core        (Core uses Factory)
-Data       ←── Core        (Core wires Data implementations)
-```
+## Dependency Injection: Factory
 
-Domain NEVER imports Data or Features.
-Features NEVER imports Data directly.
-
----
-
-## XcodeGen
-- project.yml is the source of truth for the Xcode project
-- NEVER manually edit .pbxproj
-- After Claude creates any new file, run: xcodegen generate
-- Commit project.yml, gitignore .xcodeproj if desired
-
----
-
-## Dependency Injection: Factory by Michael Long
-- Library: hmlongco/Factory (SPM)
-- One Container per layer (DomainContainer, DataContainer, FeaturesContainer)
-- AppContainer in Core/DI wires everything together
-- Always inject via protocols, never concrete types
-- Use @Injected property wrapper in ViewModels
-- Mock containers for all previews and tests
-
-Example:
+### Registration Pattern
 ```swift
+// AppContainer.swift — ALL registrations here
 extension Container {
-    var stockRepository: Factory<StockRepositoryProtocol> {
-        self { StockRepositoryImpl() }
+
+    // Singletons — shared instance across app
+    var stockCache: Factory<StockCacheProtocol> {
+        self { StockCache() }.singleton
     }
+    var recentSearchStore: Factory<RecentSearchRepositoryProtocol> {
+        self { RecentSearchStore() }.singleton
+    }
+
+    // Use cases — new instance per call
     var fetchStockUseCase: Factory<FetchStockUseCaseProtocol> {
         self { FetchStockUseCase(repository: self.stockRepository()) }
     }
+
+    // ViewModels — new instance per screen
+    var dashboardViewModel: Factory<DashboardViewModel> {
+        self {
+            DashboardViewModel(
+                fetchStockUseCase: self.fetchStockUseCase(),
+                fetchWatchlistUseCase: self.fetchWatchlistUseCase(),
+                cache: self.stockCache()
+            )
+        }
+    }
+}
+```
+
+### Constructor Injection in Features (REQUIRED)
+```swift
+// CORRECT — Features package cannot see AppContainer keys
+public final class DashboardViewModel: ObservableObject {
+    private let fetchStockUseCase: any FetchStockUseCaseProtocol
+    private let cache: any StockCacheProtocol
+
+    public init(
+        fetchStockUseCase: any FetchStockUseCaseProtocol,
+        cache: any StockCacheProtocol
+    ) {
+        self.fetchStockUseCase = fetchStockUseCase
+        self.cache = cache
+    }
+}
+
+// WRONG — @Injected not visible in Features package
+@Injected(\.fetchStockUseCase) private var fetchStockUseCase
+```
+
+### @MainActor Rule
+```swift
+// WRONG — causes Factory init error in nonisolated context
+@MainActor
+public final class DashboardViewModel: ObservableObject { }
+
+// CORRECT — annotate methods that update @Published properties
+public final class DashboardViewModel: ObservableObject {
+    @MainActor public func loadDashboard() async { }
+    @MainActor public func refreshDashboard() async { }
 }
 ```
 
 ---
 
 ## Navigation Architecture
-- Pattern: Coordinator + NavigationStack + NavigationPath (iOS 17+)
-- AppCoordinator owns root navigation state
-- Each feature has its own FeatureCoordinator
-- Cross-feature navigation goes through AppCoordinator only
-- Universal Links handled in AppCoordinator via onOpenURL
 
-### Sheet Types
-- .sheet()                               # single view or multi-step flow
-- .fullScreenCover()                     # full screen sheets
-- .presentationDetents([.medium,.large]) # half / draggable sheets
-- popToRoot / dismiss entire stack       # full flow dismiss (e.g. post-Auth)
+### Pattern: Isolated Tab Coordinators
+Each tab is its own SwiftUI View observing its coordinator via
+@ObservedObject. This isolates redraws — path changes in one tab
+never cause other tabs or AppCoordinatorView to redraw.
+
+```swift
+// CORRECT — isolated tab, no cross-tab redraws
+private struct DashboardTab: View {
+    @ObservedObject var coordinator: DashboardCoordinator
+    @StateObject private var viewModel = Container.shared.dashboardViewModel()
+
+    var body: some View {
+        NavigationStack(path: $coordinator.path) {
+            DashboardView(
+                viewModel: viewModel,
+                onStockTapped: { symbol in
+                    coordinator.navigate(to: .stockDetail(symbol: symbol))
+                }
+            )
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .stockDetail(let symbol):
+                    StockDetailView(
+                        viewModel: Container.shared.stockDetailViewModel(),
+                        symbol: symbol
+                    )
+                default: EmptyView()
+                }
+            }
+        }
+    }
+}
+
+// WRONG — coordinator as @Published on AppCoordinator causes
+// chain reaction: path change → AppCoordinator publishes →
+// AppCoordinatorView redraws → @StateObject resets → path clears
+@Published var dashboardCoordinator = DashboardCoordinator()
+```
+
+### Coordinator Rules
+```swift
+// AppCoordinator — coordinators as plain var (NOT @Published)
+var dashboardCoordinator  = DashboardCoordinator()
+var watchlistCoordinator  = WatchlistCoordinator()
+var searchCoordinator     = SearchCoordinator()
+
+// Only tab selection and auth are @Published
+@Published var activeTab: AppTab = .dashboard
+@Published var isShowingAuth: Bool = false
+```
+
+### Deep Link Format
+```
+stockpulse://stock/AAPL            → Stock Detail
+stockpulse://search                → Search tab
+https://stockpulse.com/stock/AAPL  → Stock Detail (Universal Link)
+```
 
 ### AppRoute
 ```swift
 enum AppRoute: Hashable {
+    case dashboard
     case stockDetail(symbol: String)
-    case watchlist
-    case auth
     case search
+    case watchlist
+    case notifications
+    case notification(userInfo: [String: String])
 }
 ```
 
 ---
 
-## Stock Data: Alpha Vantage
-- Docs: https://www.alphavantage.co/documentation/
-- Base URL: https://www.alphavantage.co/query
-- Auth: apikey query parameter (injected per environment via xcconfig)
-- Rate limits: 25 calls/day (free), 75/min (premium)
+## Caching Strategy
 
-### Key Endpoints
-- GLOBAL_QUOTE          → single stock quote
-- TIME_SERIES_INTRADAY  → real-time intraday prices
-- SYMBOL_SEARCH         → stock search
-- OVERVIEW              → company details
+### Two-Level Cache (StockCache)
+```
+1. Memory cache (Dictionary)  → instant, app session lifetime
+        ↓ miss
+2. Disk cache (UserDefaults)  → fast, survives app restart
+        ↓ miss
+3. Network (Finnhub API)      → concurrent (premiumTier policy)
+        ↓ success
+   Save to memory + disk
+```
 
-### API Rules
-- All calls: async/await only, no completion handlers
-- DTOs never leave Data layer — always map to Domain models
-- APIClient is a protocol — MockAPIClient for tests and previews
-- API key read from Bundle via xcconfig — never hardcoded
+### CachePolicy — Single Flag to Rule All Behavior
+```swift
+// Domain/CachePolicy.swift
+// Change this ONE line to switch behavior:
+public static let current: CachePolicy = .premiumTier
 
----
+// freeTier    → 24hr TTL, sequential fetch (Alpha Vantage 25/day)
+// premiumTier → 60s TTL, concurrent fetch (Finnhub 60/min)
+```
 
-## Build Configurations & xcconfig
+### Two-Phase Loading Pattern (Dashboard, StockDetail)
+```swift
+public func loadDashboard() async {
+    isLoading = true
 
-| Scheme  | Config  | Bundle ID                     | API Key Source       |
-|---------|---------|-------------------------------|----------------------|
-| Debug   | Debug   | com.sweta.stockpulse.debug    | ALPHAVANTAGE_DEV_KEY |
-| Staging | Staging | com.sweta.stockpulse.staging  | ALPHAVANTAGE_STG_KEY |
-| Release | Release | com.sweta.stockpulse          | ALPHAVANTAGE_PROD_KEY|
+    // Phase 1: Serve cache instantly — hide spinner if data exists
+    await loadFromCacheInstantly()
+    if !trendingStocks.isEmpty { isLoading = false }
 
-### xcconfig files manage:
-- ALPHAVANTAGE_API_KEY
-- ALPHAVANTAGE_BASE_URL
-- BUNDLE_ID_SUFFIX
-- APP_DISPLAY_NAME
-- Swift flags (DEBUG, STAGING, RELEASE)
+    // Phase 2: Fetch network silently — UI updates quietly
+    trendingStocks = await fetchStocks(symbols: trendingSymbols)
+    // ...
 
----
-
-## UI & Design
-- Dark mode: full support, Color assets with dark variants
-- Design system: centralized in Core/DesignSystem
-- Animations: subtle, prefer .animation(.spring()) and .transition()
-- SwiftUI previews required for EVERY View file
-- Previews must use mock/stub data, never live data
-
----
-
-## Future Features (design for, don't build yet)
-- Push Notifications (APNs)
-- Live Activities (ActivityKit)
-- Widget support (WidgetKit)
-- Universal Links / deep linking (wire AppCoordinator now)
-
----
-
-## ⚠️ Critical Rules
-1. NEVER modify .pbxproj — run xcodegen generate instead
-2. After Claude creates any new .swift file, run xcodegen generate
-3. Never put business logic in SwiftUI Views
-4. Always use async/await — no callbacks or Combine unless required
-5. Every ViewModel must have a protocol for testability
-6. Add Logger statements for all async flows and navigation events
-7. Use Case implementations are pure Swift — zero framework imports
-8. API key is NEVER hardcoded — always read from Bundle via xcconfig
-9. DTOs never leave the Data layer
-10. Features never import Data directly
-
----
-
-## Testing Strategy
-- Unit tests: Swift Testing framework (@Test attribute)
-- UI tests: XCTest + @MainActor
-- Every UseCase must have unit tests
-- Every ViewModel must have unit tests using mock repositories
-- MockAPIClient used for all network tests
-
-Run tests:
-```bash
-xcodebuild test -scheme StockPulse \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+    isLoading = false // always false when done
+}
 ```
 
 ---
 
-## Current Status
-- Phase: Domain Layer — ready to build ✅
-- XcodeGen: ✅ installed and working
-- SPM packages: ✅ Domain, Data, Features, Factory all resolved
-- Build configs: ✅ Debug, Staging, Release wired via xcconfig
-- Info.plist: ✅ created
-- API: Alpha Vantage (API key setup pending)
-- Features in progress: None yet
+## API: Finnhub
+
+### Endpoints Used
+| Endpoint | Path | Used For | Free? |
+|----------|------|----------|-------|
+| Quote | /quote | Price, change, high, low | ✅ |
+| Profile | /stock/profile2 | Company name, logo, sector | ✅ |
+| Metrics | /stock/metric | P/E, EPS, 52W High/Low | ✅ |
+| Search | /search | Symbol search | ✅ |
+| Candles | /stock/candle | Chart data | ❌ Premium |
+
+### Auth + xcconfig
+```
+Base URL: https://finnhub.io/api/v1
+Auth:     ?token=YOUR_KEY
+
+# In Base.xcconfig — use $() to escape // (xcconfig treats // as comment)
+FINNHUB_BASE_URL=https:/$()/finnhub.io/api/v1
+FINNHUB_API_KEY=your_key_here  ← in Secrets.xcconfig (gitignored)
+```
+
+### Curl Logging (built in)
+```
+🌐 Cache MISS: AAPL — will fetch from network
+🌐 REQUEST curl -X GET 'https://finnhub.io/api/v1/quote?symbol=AAPL&token=[REDACTED]'
+✅ RESPONSE 200: https://finnhub.io/api/v1/quote?symbol=AAPL
+💾 Saved: AAPL TTL:86400.000000s
+💾 Memory HIT: AAPL
+```
+
+---
+
+## Build Configurations
+
+| Scheme | Config | Bundle ID |
+|--------|--------|-----------|
+| Debug | Debug | com.sweta.stockpulse.debug |
+| Staging | Staging | com.sweta.stockpulse.staging |
+| Release | Release | com.sweta.stockpulse |
+
+---
+
+## Design System
+
+### Glass Card — iOS 26 + iOS 17 Fallback
+```swift
+// GlassCardModifier.swift — apply with .glassCard()
+if #available(iOS 26, *) {
+    content.glassEffect(
+        .regular.tint(.clear),
+        in: RoundedRectangle(cornerRadius: 16)
+    )
+} else {
+    content
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+}
+```
+
+### Colors
+```swift
+Color(.systemGreen)  // positive price change
+Color(.systemRed)    // negative price change
+.primary             // primary text
+.secondary           // supporting text
+.tint                // accent / interactive
+```
+
+### Animations
+```swift
+.animation(.spring(response: 0.3, dampingFraction: 0.7), value: x)
+.transition(.opacity.combined(with: .move(edge: .bottom)))
+```
+
+### Generic ViewModel Pattern (testability)
+```swift
+// Views are generic over their ViewModel protocol
+struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
+    @StateObject var viewModel: ViewModel
+}
+
+// Production
+DashboardView(viewModel: DashboardViewModel(...))
+
+// Preview / Test
+DashboardView(viewModel: MockDashboardViewModel())
+```
+
+---
+
+## ⚠️ Critical Rules
+
+1. **NEVER modify .pbxproj** — run `xcodegen generate` instead
+2. **After ANY new .swift file** — run `xcodegen generate`
+3. **No business logic in Views** — ViewModels only
+4. **No @Injected in Features** — use constructor injection
+5. **No Data imports in Features** — Domain only
+6. **async/await only** — no callbacks or Combine unless required
+7. **Every ViewModel has a protocol** — for testability + previews
+8. **API key never hardcoded** — always via xcconfig → Bundle
+9. **DTOs never leave Data** — always map to Domain models
+10. **Tab ViewModels are @StateObject in tab views** — created once
+11. **Screen ViewModels via Factory** — new instance per navigation
+12. **xcconfig URL fix** — use $()/ for URLs containing //
+13. **@MainActor on methods, not class** — avoids Factory init errors
+14. **Coordinators are plain var on AppCoordinator** — NOT @Published
+
+---
+
+## Common Pitfalls & Fixes
+
+### @MainActor isolation error in Factory
+```swift
+// Error: Call to main actor-isolated initializer in nonisolated context
+// Fix: Remove @MainActor from class, add to async methods only
+@MainActor public func loadDashboard() async { }
+```
+
+### xcconfig URL truncated (shows https: instead of https://...)
+```
+# Fix: Use $() to escape double slash
+FINNHUB_BASE_URL=https:/$()/finnhub.io/api/v1
+```
+
+### Navigation path resets on tap
+```
+# Fix: Coordinators must be plain var (not @Published) on AppCoordinator
+# Fix: Each tab must be isolated view with @ObservedObject coordinator
+```
+
+### Cache miss on app relaunch (NSTaggedDate crash on iOS 26)
+```swift
+// Fix: Use .secondsSince1970 date encoding strategy
+encoder.dateEncodingStrategy = .secondsSince1970
+decoder.dateDecodingStrategy = .secondsSince1970
+```
+
+### EXC_CRASH on dictionary mutation in cache
+```swift
+// Fix: Separate read (queue.sync) from write (queue.sync flags: .barrier)
+// Never mutate inside a read block
+```
+
+### StockCacheProtocol / CachePolicy not visible in Features
+```
+// Fix: Place shared protocols in Domain (not Data)
+// Both Data and Features can import Domain
+```
+
+---
+
+## Testing Strategy
+- Framework: Swift Testing (@Test attribute)
+- Every UseCase: unit tests with mock repository
+- Every ViewModel: unit tests with mock use cases
+- MockAPIClient for all network tests
+- Previews use MockViewModel — never live data
+
+```bash
+# Run all tests
+xcodebuild test -scheme StockPulse \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
+```
+
+---
+
+## Known Limitations & TODOs
+- [ ] Chart data requires Finnhub premium (candles endpoint)
+- [ ] Company names show symbol until profile endpoint loads
+- [ ] Auth flow is placeholder
+- [ ] Notifications tab is placeholder
+- [ ] Unit tests (Phase 9)
+- [ ] App icon + launch screen (Phase 9)
+- [ ] Push notifications not wired
+
+## Future Features (designed for, not built)
+- Push Notifications (APNs) — NavigationStateManager ready
+- Live Activities (ActivityKit)
+- Widget support (WidgetKit)
+- AI Voice Assistant (WebRTC) — VoiceIntent enum future-proofed
+- Universal Links — AppCoordinator.handleUniversalLink() ready

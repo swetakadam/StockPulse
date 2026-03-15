@@ -37,6 +37,7 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
     private let fetchTimeSeriesUseCase:      any FetchTimeSeriesUseCaseProtocol
     private let addToWatchlistUseCase:       any AddToWatchlistUseCaseProtocol
     private let removeFromWatchlistUseCase:  any RemoveFromWatchlistUseCaseProtocol
+    private let fetchWatchlistUseCase:       any FetchWatchlistUseCaseProtocol
     private let cache:                       any StockCacheProtocol
     private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "StockDetail")
 
@@ -54,6 +55,7 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
         fetchTimeSeriesUseCase:      any FetchTimeSeriesUseCaseProtocol,
         addToWatchlistUseCase:       any AddToWatchlistUseCaseProtocol,
         removeFromWatchlistUseCase:  any RemoveFromWatchlistUseCaseProtocol,
+        fetchWatchlistUseCase:       any FetchWatchlistUseCaseProtocol,
         cache:                       any StockCacheProtocol
     ) {
         self.fetchStockUseCase           = fetchStockUseCase
@@ -61,6 +63,7 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
         self.fetchTimeSeriesUseCase      = fetchTimeSeriesUseCase
         self.addToWatchlistUseCase       = addToWatchlistUseCase
         self.removeFromWatchlistUseCase  = removeFromWatchlistUseCase
+        self.fetchWatchlistUseCase       = fetchWatchlistUseCase
         self.cache                       = cache
     }
 
@@ -73,6 +76,11 @@ public final class StockDetailViewModel: ObservableObject, StockDetailViewModelP
         isLoading = true
         error = nil
         isInWatchlist = false
+
+        // Check if already in watchlist
+        if let items = try? await fetchWatchlistUseCase.execute() {
+            isInWatchlist = items.contains { $0.symbol == symbol }
+        }
 
         async let stockFetch    = loadStock()
         async let overviewFetch = loadOverview()

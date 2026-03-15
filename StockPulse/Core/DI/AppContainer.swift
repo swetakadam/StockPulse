@@ -91,6 +91,7 @@ extension Container {
                 fetchTimeSeriesUseCase:      self.fetchTimeSeriesUseCase(),
                 addToWatchlistUseCase:       self.addToWatchlistUseCase(),
                 removeFromWatchlistUseCase:  self.removeFromWatchlistUseCase(),
+                fetchWatchlistUseCase:       self.fetchWatchlistUseCase(),
                 cache:                       self.stockCache()
             )
         }
