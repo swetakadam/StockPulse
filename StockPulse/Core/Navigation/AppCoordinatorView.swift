@@ -79,21 +79,31 @@ private struct DashboardTab: View {
 
 private struct WatchlistTab: View {
     @ObservedObject var coordinator: WatchlistCoordinator
+    @EnvironmentObject var appCoordinator: AppCoordinator
+    @StateObject private var viewModel = Container.shared.watchlistViewModel()
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
-            Text("Watchlist")
-                .navigationDestination(for: AppRoute.self) { route in
-                    switch route {
-                    case .stockDetail(let symbol):
-                        StockDetailView(
-                            viewModel: Container.shared.stockDetailViewModel(),
-                            symbol: symbol
-                        )
-                    default:
-                        EmptyView()
-                    }
+            WatchlistView(
+                viewModel: viewModel,
+                onStockTapped: { symbol in
+                    coordinator.navigate(to: .stockDetail(symbol: symbol))
+                },
+                onSearchTapped: {
+                    appCoordinator.activeTab = .search
                 }
+            )
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .stockDetail(let symbol):
+                    StockDetailView(
+                        viewModel: Container.shared.stockDetailViewModel(),
+                        symbol: symbol
+                    )
+                default:
+                    EmptyView()
+                }
+            }
         }
     }
 }

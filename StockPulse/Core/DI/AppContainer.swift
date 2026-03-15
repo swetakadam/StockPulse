@@ -129,4 +129,17 @@ extension Container {
             )
         }
     }
+
+    // MARK: - Watchlist ViewModel
+
+    var watchlistViewModel: Factory<WatchlistViewModel> {
+        self {
+            WatchlistViewModel(
+                fetchWatchlistUseCase:      self.fetchWatchlistUseCase(),
+                removeFromWatchlistUseCase: self.removeFromWatchlistUseCase(),
+                fetchStockUseCase:          self.fetchStockUseCase(),
+                cache:                      self.stockCache()
+            )
+        }
+    }
 }
