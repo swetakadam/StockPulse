@@ -102,21 +102,27 @@ private struct WatchlistTab: View {
 
 private struct SearchTab: View {
     @ObservedObject var coordinator: SearchCoordinator
+    @StateObject private var viewModel = Container.shared.searchViewModel()
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
-            Text("Search")
-                .navigationDestination(for: AppRoute.self) { route in
-                    switch route {
-                    case .stockDetail(let symbol):
-                        StockDetailView(
-                            viewModel: Container.shared.stockDetailViewModel(),
-                            symbol: symbol
-                        )
-                    default:
-                        EmptyView()
-                    }
+            SearchView(
+                viewModel: viewModel,
+                onStockTapped: { symbol in
+                    coordinator.navigate(to: .stockDetail(symbol: symbol))
                 }
+            )
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .stockDetail(let symbol):
+                    StockDetailView(
+                        viewModel: Container.shared.stockDetailViewModel(),
+                        symbol: symbol
+                    )
+                default:
+                    EmptyView()
+                }
+            }
         }
     }
 }

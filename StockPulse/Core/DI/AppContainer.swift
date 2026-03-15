@@ -95,4 +95,38 @@ extension Container {
             )
         }
     }
+
+    // MARK: - Recent Search
+
+    /// Recent search store — singleton so same instance app-wide
+    var recentSearchStore: Factory<RecentSearchRepositoryProtocol> {
+        self { RecentSearchStore() }
+            .singleton
+    }
+
+    var fetchRecentSearchesUseCase: Factory<FetchRecentSearchesUseCaseProtocol> {
+        self { FetchRecentSearchesUseCase(repository: self.recentSearchStore()) }
+    }
+
+    var saveRecentSearchUseCase: Factory<SaveRecentSearchUseCaseProtocol> {
+        self { SaveRecentSearchUseCase(repository: self.recentSearchStore()) }
+    }
+
+    var clearRecentSearchesUseCase: Factory<ClearRecentSearchesUseCaseProtocol> {
+        self { ClearRecentSearchesUseCase(repository: self.recentSearchStore()) }
+    }
+
+    // MARK: - Search ViewModel
+
+    var searchViewModel: Factory<SearchViewModel> {
+        self {
+            SearchViewModel(
+                searchStocksUseCase:        self.searchStocksUseCase(),
+                addToWatchlistUseCase:      self.addToWatchlistUseCase(),
+                fetchRecentSearchesUseCase: self.fetchRecentSearchesUseCase(),
+                saveRecentSearchUseCase:    self.saveRecentSearchUseCase(),
+                clearRecentSearchesUseCase: self.clearRecentSearchesUseCase()
+            )
+        }
+    }
 }
