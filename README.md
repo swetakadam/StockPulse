@@ -1,16 +1,16 @@
 # StockPulse 📈
 
-A production-grade iOS stock market app built with SwiftUI, Clean Architecture, and MVVM. Built as a learning project and architecture template.
+A production-grade iOS stock market app built with SwiftUI, Clean Architecture, MVVM, and an AI Voice Assistant powered by Azure OpenAI Realtime API.
 
-> **Note:** This project was built as a hands-on exercise in iOS Clean Architecture using Claude Code as an AI pair programmer.
+> Built as a hands-on exercise in iOS Clean Architecture using Claude Code as an AI pair programmer.
 
 ---
 
 ## Screenshots
 
-| Dashboard | Stock Detail | Search | Watchlist |
-|-----------|-------------|--------|-----------|
-| Market overview with liquid glass cards | Real-time price, stats, company info | Debounced live search | Sort, swipe to delete |
+| Dashboard | Stock Detail | Search | Watchlist | AI Assistant |
+|-----------|-------------|--------|-----------|--------------|
+| Market overview with liquid glass cards | Real-time price, stats, company info | Debounced live search | Sort, swipe to delete | Voice + tool calling |
 
 ---
 
@@ -22,10 +22,64 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 | Architecture | MVVM + Clean Architecture | Testable, scalable |
 | DI | Factory by Michael Long | Protocol-first, testable |
 | Navigation | Coordinator + NavigationPath | Type-safe, deep-link ready |
-| API | Finnhub (free tier) | 60 calls/min, no daily cap |
+| Stock API | Finnhub (free tier) | 60 calls/min, no daily cap |
+| AI Voice | Azure OpenAI gpt-realtime-mini | WebRTC, tool calling |
+| WebRTC | stasel/WebRTC M114 | Native iOS WebRTC |
 | Caching | Two-level (Memory + UserDefaults) | Instant loads, offline support |
 | Project | XcodeGen | No .pbxproj conflicts |
 | Min iOS | iOS 17 | NavigationPath, SwiftData |
+
+---
+
+## Features
+
+### 📊 Dashboard
+- Market overview — S&P 500, NASDAQ, DOW with liquid glass cards
+- Trending stocks horizontal scroll
+- Watchlist preview section
+- Top gainers / losers with segmented control
+- Pull to refresh
+- Two-phase loading: cache instantly, network fills gaps silently
+- Good Morning/Afternoon/Evening greeting
+
+### 📈 Stock Detail
+- Real-time price with change indicator
+- Company logo via AsyncImage
+- Key stats: Market Cap, P/E, EPS, 52W High/Low, Avg Volume
+- Price chart placeholder (Finnhub candles = premium)
+- Company info with expandable description
+- Add/Remove watchlist with instant star update
+- Optimistic UI updates
+
+### 🔍 Search
+- Debounced live search (300ms)
+- Recent searches history (Clean Architecture — use cases, not UserDefaults directly)
+- Trending symbols grid
+- Add to watchlist directly from results
+- Tap result → Stock Detail
+
+### ⭐️ Watchlist
+- Clean list style (like native Stocks app)
+- Total portfolio value header
+- Sort by: Name, Price, Change%
+- Swipe to delete
+- Empty state with prompt to Search
+- Always reloads on appear (watchlist is small, always fresh)
+
+### 🤖 AI Voice Assistant
+- Azure OpenAI gpt-realtime-mini via WebRTC
+- 6 tools wired to real Use Cases:
+  - `get_stock_price` → FetchStockUseCase
+  - `search_stock` → SearchStocksUseCase
+  - `add_to_watchlist` → AddToWatchlistUseCase
+  - `remove_from_watchlist` → RemoveFromWatchlistUseCase
+  - `navigate_to_stock` → NavigationStateManager
+  - `get_watchlist` → FetchWatchlistUseCase
+- Smart audio routing (speaker / headphones / Bluetooth)
+- Real-time transcript with message bubbles
+- Typing indicator animation
+- Stock-only system instructions (refuses off-topic questions)
+- NotificationCenter sync — watchlist star updates instantly from AI actions
 
 ---
 
@@ -36,14 +90,14 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 ```
 ┌─────────────────────────────────────────────────┐
 │                   SwiftUI View                   │
-│         (zero business logic, closures           │
-│          for navigation, generic ViewModel)      │
+│    (zero business logic, generic ViewModel,      │
+│     closures for navigation)                     │
 └────────────────────┬────────────────────────────┘
                      │ observes @Published
 ┌────────────────────▼────────────────────────────┐
 │                  ViewModel                       │
-│     (ObservableObject, constructor injection,    │
-│      @MainActor on async methods only)           │
+│  (ObservableObject, constructor injection,       │
+│   @MainActor on async methods only)              │
 └────────────────────┬────────────────────────────┘
                      │ calls protocol
 ┌────────────────────▼────────────────────────────┐
@@ -57,8 +111,7 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 └────────────────────┬────────────────────────────┘
                      │ calls protocol
 ┌────────────────────▼────────────────────────────┐
-│           Repository Protocol                    │
-│                  (Domain)                        │
+│           Repository Protocol (Domain)           │
 └────────────────────┬────────────────────────────┘
                      │ implemented by
 ┌────────────────────▼────────────────────────────┐
@@ -75,38 +128,54 @@ StockPulse/
 │   ├── Domain/          # Pure Swift — zero external dependencies
 │   │   ├── Models/      # Stock, Quote, CompanyOverview, RecentSearch
 │   │   ├── Repositories/# Protocol definitions only
-│   │   ├── UseCases/    # Business logic implementations
-│   │   └── CachePolicy.swift  # Single flag: freeTier / premiumTier
+│   │   ├── UseCases/    # Business logic (10 use cases)
+│   │   ├── CachePolicy.swift   # freeTier / premiumTier flag
+│   │   └── StockCacheProtocol.swift
 │   │
 │   ├── Data/            # Depends on Domain + Factory
 │   │   ├── Network/     # FinnhubClient, APIEndpoint, DTOs
-│   │   ├── Mappers/     # DTO → Domain model (DTOs never leave Data)
+│   │   ├── Mappers/     # DTO → Domain (DTOs never leave Data)
 │   │   ├── Persistence/ # StockCache, WatchlistStore, RecentSearchStore
 │   │   └── Repositories/# StockRepositoryImpl
 │   │
 │   └── Features/        # Depends on Domain + Factory
-│       ├── Dashboard/   # Market overview, trending, movers
-│       ├── StockDetail/ # Price, chart placeholder, stats, company info
-│       ├── Search/      # Debounced search, recent history, trending
-│       └── Watchlist/   # List, sort, swipe delete, total value
+│       ├── Dashboard/
+│       ├── StockDetail/
+│       ├── Search/
+│       └── Watchlist/
 │
 └── StockPulse/          # Main app target
     └── Core/
+        ├── AI/          # WebRTC + Azure OpenAI Realtime
+        │   ├── RealtimeConfig.swift      # All config from Bundle/xcconfig
+        │   ├── RealtimeSessionManager.swift
+        │   ├── WebRTCManager.swift
+        │   ├── StockToolsManager.swift   # Tool calls → Use Cases
+        │   ├── AIAssistantViewModel.swift
+        │   └── AIAssistantView.swift
         ├── Navigation/  # Coordinators, AppRoute, deep links
         └── DI/          # AppContainer — all Factory registrations
 ```
 
-### Dependency Rules
+### AI Architecture
 
 ```
-Domain ← Data       ✅  Data imports Domain
-Domain ← Features   ✅  Features imports Domain
-Data   ← Features   ❌  Features NEVER imports Data
-Data   ← Domain     ❌  Domain NEVER imports Data
+User Voice Input
+      ↓ WebRTC audio
+Azure gpt-realtime-mini
+      ↓ tool_call (data channel)
+StockToolsManager
+      ↓ constructor injection
+Use Cases (Domain)
+      ↓
+Repository (Data) → Finnhub API / Cache
+      ↑
+tool_result (data channel)
+      ↑
+GPT speaks response
+      ↑ WebRTC audio
+User hears response
 ```
-
-Anything shared between Data and Features (like `StockCacheProtocol`,
-`CachePolicy`) lives in **Domain** — the only package everyone can import.
 
 ---
 
@@ -114,22 +183,17 @@ Anything shared between Data and Features (like `StockCacheProtocol`,
 
 ### The Problem We Solved
 
-Standard SwiftUI navigation with a shared `ObservableObject` coordinator
-causes a chain reaction:
+Standard SwiftUI navigation with shared `ObservableObject` coordinator causes:
 
 ```
-path changes
-  → coordinator @Published fires
-    → AppCoordinator objectWillChange fires
-      → AppCoordinatorView redraws
-        → DashboardView @StateObject resets
-          → NavigationPath clears  ← BUG 💥
+path changes → coordinator @Published fires
+  → AppCoordinator objectWillChange fires
+    → AppCoordinatorView redraws
+      → DashboardView @StateObject resets
+        → NavigationPath clears ← BUG 💥
 ```
 
 ### The Solution: Isolated Tab Views
-
-Each tab is its own SwiftUI View with `@ObservedObject` on its coordinator.
-Path changes only redraw that tab — nothing else.
 
 ```swift
 // Each tab isolated — path changes never bubble up
@@ -140,29 +204,15 @@ private struct DashboardTab: View {
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             DashboardView(viewModel: viewModel, ...)
-                .navigationDestination(for: AppRoute.self) { ... }
         }
     }
 }
-```
 
-```swift
 // AppCoordinator — coordinators as plain var (NOT @Published)
 final class AppCoordinator: ObservableObject {
-    var dashboardCoordinator  = DashboardCoordinator()  // ✅ plain var
-    var watchlistCoordinator  = WatchlistCoordinator()  // ✅ plain var
-
-    @Published var activeTab: AppTab = .dashboard       // ✅ @Published
-    @Published var isShowingAuth: Bool = false          // ✅ @Published
+    var dashboardCoordinator = DashboardCoordinator()  // ✅ plain var
+    @Published var activeTab: AppTab = .dashboard      // ✅ @Published
 }
-```
-
-### Deep Links
-
-```
-stockpulse://stock/AAPL            → Stock Detail
-stockpulse://search                → Search tab
-https://stockpulse.com/stock/AAPL  → Universal Link → Stock Detail
 ```
 
 ---
@@ -173,115 +223,24 @@ https://stockpulse.com/stock/AAPL  → Universal Link → Stock Detail
 
 ```
 Request stock "AAPL"
-       │
-       ▼
-┌─────────────────┐
-│  Memory Cache   │ ← Dictionary, instant, app session only
-│   (fastest)     │
-└────────┬────────┘
-    HIT  │  MISS
-         ▼
-┌─────────────────┐
-│   Disk Cache    │ ← UserDefaults, survives app restart
-│  (UserDefaults) │
-└────────┬────────┘
-    HIT  │  MISS
-         ▼
-┌─────────────────┐
-│  Finnhub API    │ ← Network, concurrent (Finnhub 60/min)
-│   (network)     │
-└────────┬────────┘
-         │ success
-         ▼
-  Save to memory + disk
+       ↓
+Memory Cache (Dictionary) ← instant, app session
+       ↓ miss
+Disk Cache (UserDefaults)  ← fast, survives restart
+       ↓ miss
+Finnhub API               ← concurrent (60/min)
+       ↓ success
+Save to memory + disk
 ```
 
 ### CachePolicy — One Flag Controls Everything
 
 ```swift
-// Domain/CachePolicy.swift
 // Change this ONE line to switch all behavior:
 public static let current: CachePolicy = .premiumTier
 
-//                    TTL      Fetch Strategy    Delay
-// .freeTier       → 24hr    sequential        300ms  (Alpha Vantage)
-// .premiumTier    → 60s     concurrent        none   (Finnhub)
-```
-
-### Two-Phase Loading
-
-```swift
-// Phase 1: Show cached data instantly — no spinner if cache is warm
-await loadFromCacheInstantly()
-if !data.isEmpty { isLoading = false }
-
-// Phase 2: Fetch network silently — UI updates quietly
-await fetchFromNetwork()
-isLoading = false
-```
-
----
-
-## Dependency Injection
-
-### Factory Pattern
-
-```swift
-// AppContainer.swift — single source of truth for all DI
-extension Container {
-
-    // Singleton — one instance for entire app lifetime
-    var stockCache: Factory<StockCacheProtocol> {
-        self { StockCache() }.singleton
-    }
-
-    // Use case — new instance each time (stateless)
-    var fetchStockUseCase: Factory<FetchStockUseCaseProtocol> {
-        self { FetchStockUseCase(repository: self.stockRepository()) }
-    }
-
-    // ViewModel — new instance per screen
-    var stockDetailViewModel: Factory<StockDetailViewModel> {
-        self {
-            StockDetailViewModel(
-                fetchStockUseCase: self.fetchStockUseCase(),
-                fetchCompanyOverviewUseCase: self.fetchCompanyOverviewUseCase(),
-                cache: self.stockCache()
-            )
-        }
-    }
-}
-```
-
-### Constructor Injection in Features
-
-Features package cannot see `AppContainer` (that lives in the main app target).
-So ViewModels declare their dependencies in `init()` — Factory wires them from outside.
-
-```swift
-// Features package — ViewModel declares what it needs
-public final class DashboardViewModel: ObservableObject {
-    private let fetchStockUseCase: any FetchStockUseCaseProtocol
-    private let cache: any StockCacheProtocol
-
-    public init(
-        fetchStockUseCase: any FetchStockUseCaseProtocol,
-        cache: any StockCacheProtocol
-    ) {
-        self.fetchStockUseCase = fetchStockUseCase
-        self.cache = cache
-    }
-}
-
-// Main app target — AppContainer wires it
-var dashboardViewModel: Factory<DashboardViewModel> {
-    self {
-        DashboardViewModel(
-            fetchStockUseCase: self.fetchStockUseCase(),
-            cache: self.stockCache()
-        )
-    }
-}
+// .freeTier    → 24hr TTL, sequential (Alpha Vantage 25/day)
+// .premiumTier → 60s TTL, concurrent  (Finnhub 60/min)
 ```
 
 ---
@@ -293,134 +252,126 @@ var dashboardViewModel: Factory<DashboardViewModel> {
 ```bash
 git clone https://github.com/swetakadam/StockPulse.git
 cd StockPulse
-
-# Install XcodeGen
 brew install xcodegen
-
-# Generate .xcodeproj
 xcodegen generate
 ```
 
-### 2. Get a Free Finnhub API Key
+### 2. Get API Keys
 
-1. Sign up at [finnhub.io](https://finnhub.io) — no credit card required
-2. Copy your API key from the dashboard
-3. Free tier: 60 API calls/minute
+**Finnhub** (stock data):
+1. Sign up at [finnhub.io](https://finnhub.io) — no credit card
+2. Copy your API key
+
+**Azure OpenAI** (AI voice — optional):
+1. Deploy `gpt-realtime-mini` in Azure AI Foundry (East US 2)
+2. Set up APIM gateway for ephemeral token endpoint
 
 ### 3. Configure Secrets
 
 Create `Configurations/Secrets.xcconfig` (gitignored):
 
 ```
-# Configurations/Secrets.xcconfig
-FINNHUB_API_KEY=your_key_here
-FINNHUB_DEV_KEY=your_key_here
-FINNHUB_STG_KEY=your_key_here
-FINNHUB_PROD_KEY=your_key_here
+# Stock API
+FINNHUB_API_KEY=your_finnhub_key
+FINNHUB_DEV_KEY=your_finnhub_key
+
+# AI Voice (optional)
+APIM_SUBSCRIPTION_KEY=your_apim_key
+APIM_ENDPOINT=https:/$()/your-apim.azure-api.net
+WEBRTC_ENDPOINT=https:/$()/eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc
+REALTIME_DEPLOYMENT=gpt-realtime-mini
 ```
 
-⚠️ No spaces around `=` in xcconfig files — spaces become part of the value!
+⚠️ Use `$()` to escape `//` in xcconfig (xcconfig treats `//` as comment)
+⚠️ No spaces around `=`
 
 ### 4. Build & Run
 
 ```bash
-# Open in Xcode
 open StockPulse.xcodeproj
-
-# Select Debug scheme → iPhone 17 Pro Max simulator → CMD+R
+# Select Debug scheme → iPhone 17 Pro Max → CMD+R
 ```
 
 ---
 
 ## Lessons Learned / Gotchas
 
-### 1. xcconfig and Double Slash
-
-xcconfig treats `//` as a comment character. URLs get truncated:
+### 1. xcconfig Double Slash
 ```
 # WRONG — truncates to "https:"
 FINNHUB_BASE_URL=https://finnhub.io/api/v1
 
-# CORRECT — use $() to escape //
+# CORRECT
 FINNHUB_BASE_URL=https:/$()/finnhub.io/api/v1
 ```
 
-### 2. @MainActor on Class vs Methods
-
+### 2. @MainActor on Methods Not Class
 ```swift
-// WRONG — Factory closure is nonisolated, causes compile error:
-// "Call to main actor-isolated initializer in nonisolated context"
-@MainActor
-public final class DashboardViewModel: ObservableObject { }
+// WRONG — Factory init error
+@MainActor public final class DashboardViewModel { }
 
-// CORRECT — annotate only the methods that update UI
-public final class DashboardViewModel: ObservableObject {
+// CORRECT
+public final class DashboardViewModel {
     @MainActor public func loadDashboard() async { }
 }
 ```
 
-### 3. @Published Coordinators Cause Navigation Reset
+### 3. @Published Coordinators Reset Navigation
+Coordinators on AppCoordinator must be plain `var`, not `@Published`.
+Path changes cause chain reaction redraws that reset NavigationPath.
 
-If coordinators are `@Published` on `AppCoordinator`, every path change
-triggers a full `AppCoordinatorView` redraw, resetting all `@StateObject`
-ViewModels and clearing `NavigationPath`. Solution: plain `var`.
-
-### 4. StockCacheProtocol Must Live in Domain
-
-Both `Data` and `Features` need `StockCacheProtocol`. Since Features
-cannot import Data, the protocol must live in `Domain` — the only
+### 4. StockCacheProtocol in Domain
+Both Data and Features need it. Must live in Domain — the only
 package both can import.
 
 ### 5. iOS 26 NSTaggedDate Crash
-
-Default `JSONEncoder` date encoding causes crashes on iOS 26 when
-reading from `UserDefaults`. Fix:
 ```swift
 encoder.dateEncodingStrategy = .secondsSince1970
 decoder.dateDecodingStrategy = .secondsSince1970
 ```
 
-### 6. Concurrent Cache Writes Crash on iOS 26
-
-Writing to a Dictionary inside a `queue.sync` read block causes
-`EXC_CRASH`. Always separate reads from writes:
+### 6. WebRTC Audio Route
 ```swift
-// Read
-let result = queue.sync { memoryCache[symbol] }
-
-// Write (separate call)
-queue.sync(flags: .barrier) { memoryCache[symbol] = value }
+// Only override to speaker if no headphones connected
+let hasExternalOutput = session.currentRoute.outputs.contains {
+    $0.portType == .headphones || $0.portType == .bluetoothA2DP
+}
+guard !hasExternalOutput else { return }
+rtcAudioSession.overrideOutputAudioPort(.speaker)
 ```
 
-### 7. Alpha Vantage vs Finnhub
+### 7. SPM Bundle.main
+`Bundle.main` inside SPM package points to package bundle not app bundle.
+Pass `Bundle.main` explicitly from main target.
 
-We started with Alpha Vantage (25 calls/DAY free tier) and switched to
-Finnhub (60 calls/MINUTE free tier). The `CachePolicy` enum and
-`APIClientProtocol` abstraction made this a clean swap — only 4 files
-changed, zero Domain or Features changes needed.
-
-### 8. SPM Package Bundle vs App Bundle
-
-`Bundle.main` inside an SPM package points to the package bundle,
-not the app bundle. API keys from `Info.plist` won't be found.
-Fix: pass `Bundle.main` explicitly from the main app target:
+### 8. AI Navigation Tab Switch
+When AI navigates to a stock, switch tab first then push route:
 ```swift
-public init(bundle: Bundle = .main) throws {
-    let info = bundle.infoDictionary  // works from main target
+self.activeTab = .dashboard
+DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+    self.dashboardCoordinator.navigate(to: route)
 }
+```
+
+### 9. Watchlist Star from AI
+Use NotificationCenter to sync AI watchlist changes to StockDetail:
+```swift
+NotificationCenter.default.post(name: .watchlistDidChange,
+    userInfo: ["symbol": symbol, "action": "added"])
 ```
 
 ---
 
 ## Future Roadmap
 
-- [ ] Real-time chart data (Finnhub premium candles endpoint)
-- [ ] Push Notifications (APNs) — NavigationStateManager already wired
-- [ ] Live Activities (ActivityKit) — stock price ticker
+- [ ] Notifications screen (news feed, earnings calendar, price alerts)
+- [ ] Real-time chart data (Finnhub premium candles)
+- [ ] Push Notifications (APNs)
+- [ ] Live Activities (ActivityKit) — stock ticker
 - [ ] Widget support (WidgetKit)
-- [ ] AI Voice Assistant (WebRTC) — VoiceIntent enum future-proofed
 - [ ] Unit tests for all Use Cases and ViewModels
 - [ ] App icon and launch screen
+- [ ] Company names via Finnhub profile on Dashboard
 
 ---
 
@@ -428,13 +379,13 @@ public init(bundle: Bundle = .main) throws {
 
 | Metric | Count |
 |--------|-------|
-| Swift files | 60+ |
+| Swift files | 75+ |
 | SPM packages | 3 (Domain, Data, Features) |
 | Use cases | 10 |
-| ViewModels | 4 |
-| Screens | 4 (Dashboard, Detail, Search, Watchlist) |
-| API endpoints | 5 |
-| Lines of code | ~4,000 |
+| ViewModels | 5 |
+| Screens | 5 (Dashboard, Detail, Search, Watchlist, AI) |
+| AI Tools | 6 |
+| API endpoints | 7 |
 
 ---
 
@@ -443,6 +394,8 @@ public init(bundle: Bundle = .main) throws {
 - [SwiftUI](https://developer.apple.com/xcode/swiftui/)
 - [Factory](https://github.com/hmlongco/Factory) — Dependency Injection
 - [Finnhub API](https://finnhub.io) — Stock market data
+- [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service) — AI Voice
+- [stasel/WebRTC](https://github.com/stasel/WebRTC) — WebRTC framework
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — Project generation
 - [Claude Code](https://claude.ai/code) — AI pair programming
 
