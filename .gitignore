@@ -64,3 +64,4 @@ fastlane/test_output/
 DerivedData/
 xcuserdata/
 *.xcuserstate
+*.xcuserdata/
