@@ -82,7 +82,13 @@ final class StockToolsManager {
                     
                     Keep all responses under 3 sentences. Be concise and helpful.
                 """,
-                "modalities": ["text", "audio"],  
+                "modalities": ["text", "audio"],
+                "turn_detection": [
+                    "type": "server_vad",
+                    "threshold": NSNumber(value: 0.5),
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 600
+                ],
                 "tool_choice": "auto",
                 "tools": toolDefinitions()
             ]

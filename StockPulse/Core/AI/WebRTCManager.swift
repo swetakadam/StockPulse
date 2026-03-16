@@ -334,6 +334,28 @@ final class WebRTCManager: NSObject, ObservableObject {
                 self?.statusMessage = "🟢 Connected — speak now!"
             }
 
+        case "output_audio_buffer.started":
+            // GPT started speaking — mute mic to prevent echo
+            DispatchQueue.main.async { [weak self] in
+                self?.localAudioTrack?.isEnabled = false
+                self?.isGPTSpeaking = true
+                self?.statusMessage = "Speaking..."
+            }
+
+        case "output_audio_buffer.stopped":
+            // GPT finished speaking — unmute mic
+            DispatchQueue.main.async { [weak self] in
+                self?.localAudioTrack?.isEnabled = true
+                self?.isGPTSpeaking = false
+                self?.statusMessage = "🟢 Connected — speak now!"
+            }
+
+        case "response.audio_transcript.done":
+            DispatchQueue.main.async { [weak self] in
+                self?.isGPTSpeaking = false
+                // Don't re-enable mic here — wait for output_audio_buffer.stopped
+            }
+
         case "response.function_call_arguments.delta":
             if let delta = json["delta"] as? String { currentToolArgs += delta }
             if currentToolName.isEmpty,
