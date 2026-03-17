@@ -8,9 +8,9 @@ options:
   generateEmptyDirectories: true
 
 configs:
-  Debug: debug # unoptimized, full debug symbols ✅
-  Staging: release # optimized, mimics production build ✅
-  Release: release # optimized, production ✅
+  Debug: debug
+  Staging: release
+  Release: release
 
 settings:
   base:
@@ -68,29 +68,29 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: com.sweta.stockpulse
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: RELEASE
 
-    StockPulseTests:
-        type: bundle.unit-test
-        platform: iOS
-        sources: StockPulseTests
-        settings:
-          base:
-            DEVELOPMENT_TEAM: 2RB6B6Z8G3
-            CODE_SIGN_STYLE: Automatic
-            GENERATE_INFOPLIST_FILE: YES
-        dependencies:
-          - target: StockPulse
-          - package: Domain
-          - package: Data
-          - package: Features
+  StockPulseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: StockPulseTests
+    settings:
+      base:
+        DEVELOPMENT_TEAM: 2RB6B6Z8G3
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: StockPulse
+      - package: Domain
+      - package: Data
+      - package: Features
 
-    StockPulseUITests:
-        type: bundle.ui-testing
-        platform: iOS
-        sources: StockPulseUITests
-        settings:
-          base:
-            DEVELOPMENT_TEAM: 2RB6B6Z8G3
-            CODE_SIGN_STYLE: Automatic
-            GENERATE_INFOPLIST_FILE: YES
-        dependencies:
-          - target: StockPulse
+  StockPulseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: StockPulseUITests
+    settings:
+      base:
+        DEVELOPMENT_TEAM: 2RB6B6Z8G3
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: StockPulse
