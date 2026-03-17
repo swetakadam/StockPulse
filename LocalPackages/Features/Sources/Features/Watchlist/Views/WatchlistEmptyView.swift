@@ -40,6 +40,7 @@ struct WatchlistEmptyView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
+        .accessibilityIdentifier("watchlist_empty_state")
     }
 }
 

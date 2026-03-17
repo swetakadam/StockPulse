@@ -91,8 +91,10 @@ public struct SearchView<ViewModel: SearchViewModelProtocol>: View {
                                         }
                                     }
                                 )
+                                .accessibilityIdentifier("search_result_\(stock.symbol)")
                             }
                         }
+                        .accessibilityIdentifier("search_results_list")
                         .padding(.horizontal)
                         .glassCard()
                         .padding(.horizontal)

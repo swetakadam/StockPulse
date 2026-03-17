@@ -63,6 +63,7 @@ public struct WatchlistView<ViewModel: WatchlistViewModelProtocol>: View {
                     WatchlistRowView(stock: stock) {
                         onStockTapped(stock.symbol)
                     }
+                    .accessibilityIdentifier("watchlist_row_\(stock.symbol)")
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             Task { await viewModel.removeFromWatchlist(symbol: stock.symbol) }
@@ -78,6 +79,7 @@ public struct WatchlistView<ViewModel: WatchlistViewModelProtocol>: View {
             }
         }
         .listStyle(.insetGrouped)
+        .accessibilityIdentifier("watchlist_list")
         .refreshable { await viewModel.refreshWatchlist() }
     }
 
@@ -98,6 +100,7 @@ public struct WatchlistView<ViewModel: WatchlistViewModelProtocol>: View {
             }
         } label: {
             Image(systemName: "arrow.up.arrow.down")
+                .accessibilityIdentifier("watchlist_sort_button")
         }
     }
 }

@@ -34,6 +34,7 @@ struct PriceHeaderView: View {
                     Text(stock?.symbol ?? "")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .accessibilityIdentifier("stock_symbol_label")
                     Text(stock?.companyName ?? "")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -48,6 +49,7 @@ struct PriceHeaderView: View {
                         .font(.title2)
                         .foregroundStyle(isInWatchlist ? .yellow : .secondary)
                 }
+                .accessibilityIdentifier("watchlist_toggle_button")
             }
 
             // Price row
@@ -55,6 +57,7 @@ struct PriceHeaderView: View {
                 Text(stock.currentPrice, format: .currency(code: "USD"))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
+                    .accessibilityIdentifier("stock_price_label")
 
                 HStack(spacing: 8) {
                     Text(changeText(stock.change))

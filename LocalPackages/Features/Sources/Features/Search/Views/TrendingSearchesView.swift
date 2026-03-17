@@ -41,6 +41,7 @@ struct TrendingSearchesView: View {
                 }
             }
             .padding(.horizontal)
+            .accessibilityIdentifier("trending_grid")
         }
     }
 }

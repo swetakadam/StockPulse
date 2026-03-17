@@ -74,6 +74,7 @@ public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
             }
             .padding(.vertical, 16)
         }
+        .accessibilityIdentifier("dashboard_scroll_view")
         .refreshable { await viewModel.refreshDashboard() }
     }
 
@@ -84,6 +85,7 @@ public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
             Text("StockPulse")
                 .font(.largeTitle)
                 .fontWeight(.bold)
+                .accessibilityIdentifier("dashboard_title")
             Text(greeting)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
