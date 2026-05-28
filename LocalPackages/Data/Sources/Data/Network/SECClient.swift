@@ -3,11 +3,11 @@ import Domain
 
 // EDGAR public API — no API key required.
 // SEC requires User-Agent header identifying the app + contact email.
-final class SECClient: Sendable {
+public final class SECClient: Sendable {
 
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
+    public init(session: URLSession = .shared) {
         self.session = session
     }
 

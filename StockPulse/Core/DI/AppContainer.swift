@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftData
 import Factory
 import Domain
 import Data
@@ -144,6 +145,45 @@ extension Container {
         }
     }
 
+    // MARK: - SEC / 10-K
+
+    var secRepository: Factory<SECRepositoryProtocol> {
+        self {
+            let chatClient = AzureChatClient()
+            let parser = TenKParser { rawHTML, section in
+                try await chatClient.parseSection(rawHTML: rawHTML, section: section)
+            }
+            return SECRepositoryImpl(client: SECClient(), parser: parser)
+        }
+    }
+
+    var fetchTenKSectionUseCase: Factory<FetchTenKSectionUseCaseProtocol> {
+        self { FetchTenKSectionUseCase(repository: self.secRepository()) }
+    }
+
+    // MARK: - Agent Infrastructure
+
+    var agentOrchestrator: Factory<AgentOrchestrator> {
+        self {
+            let registry = AgentToolRegistry(
+                fetchStockUseCase:          self.fetchStockUseCase(),
+                searchStocksUseCase:        self.searchStocksUseCase(),
+                fetchWatchlistUseCase:      self.fetchWatchlistUseCase(),
+                addToWatchlistUseCase:      self.addToWatchlistUseCase(),
+                removeFromWatchlistUseCase: self.removeFromWatchlistUseCase(),
+                fetchTenKSectionUseCase:    self.fetchTenKSectionUseCase()
+            )
+            let memory = AgentMemory(
+                container: try! ModelContainer(for: StoredAgentResult.self)
+            )
+            return AgentOrchestrator(
+                chatClient:   AzureChatClient(),
+                toolRegistry: registry,
+                memory:       memory
+            )
+        }
+    }
+
     // MARK: - AI Assistant ViewModel
 
     var aiAssistantViewModel: Factory<AIAssistantViewModel> {
@@ -153,7 +193,8 @@ extension Container {
                 searchStocksUseCase:        self.searchStocksUseCase(),
                 fetchWatchlistUseCase:      self.fetchWatchlistUseCase(),
                 addToWatchlistUseCase:      self.addToWatchlistUseCase(),
-                removeFromWatchlistUseCase: self.removeFromWatchlistUseCase()
+                removeFromWatchlistUseCase: self.removeFromWatchlistUseCase(),
+                agentOrchestrator:          self.agentOrchestrator()
             )
         }
     }

@@ -26,6 +26,7 @@ final class StockToolsManager {
     private let fetchWatchlistUseCase:      any FetchWatchlistUseCaseProtocol
     private let addToWatchlistUseCase:      any AddToWatchlistUseCaseProtocol
     private let removeFromWatchlistUseCase: any RemoveFromWatchlistUseCaseProtocol
+    private let agentOrchestrator: AgentOrchestrator
 
     weak var dataChannel: RTCDataChannel?
 
@@ -34,13 +35,22 @@ final class StockToolsManager {
         searchStocksUseCase:        any SearchStocksUseCaseProtocol,
         fetchWatchlistUseCase:      any FetchWatchlistUseCaseProtocol,
         addToWatchlistUseCase:      any AddToWatchlistUseCaseProtocol,
-        removeFromWatchlistUseCase: any RemoveFromWatchlistUseCaseProtocol
+        removeFromWatchlistUseCase: any RemoveFromWatchlistUseCaseProtocol,
+        agentOrchestrator:          AgentOrchestrator
     ) {
         self.fetchStockUseCase          = fetchStockUseCase
         self.searchStocksUseCase        = searchStocksUseCase
         self.fetchWatchlistUseCase      = fetchWatchlistUseCase
         self.addToWatchlistUseCase      = addToWatchlistUseCase
         self.removeFromWatchlistUseCase = removeFromWatchlistUseCase
+        self.agentOrchestrator = agentOrchestrator
+        agentOrchestrator.progressHandler = { message in
+            NotificationCenter.default.post(
+                name: .agentStepProgress,
+                object: nil,
+                userInfo: ["message": message]
+            )
+        }
     }
 
     // MARK: - Session Update
@@ -94,7 +104,7 @@ final class StockToolsManager {
             ]
         ]
         sendDataChannelMessage(event)
-        logger.debug("✅ Session update sent — 6 tools registered")
+        logger.debug("✅ Session update sent — 7 tools registered")
     }
 
     // MARK: - Tool Call Router
@@ -126,6 +136,12 @@ final class StockToolsManager {
                 )
             case "get_watchlist":
                 result = await getWatchlist()
+            case "run_research_agent":
+                let goal      = args["goal"] as? String ?? ""
+                let tickers   = (args["tickers"] as? [String]) ?? []
+                let allowPar  = args["allow_parallel"] as? Bool ?? false
+                let task      = AgentTask(goal: goal, tickers: tickers, allowParallel: allowPar)
+                result        = await runResearchAgent(task: task)
             default:
                 logger.warning("⚠️ Unknown tool: \(name)")
                 result = encodeError("Unknown tool: \(name)")
@@ -213,6 +229,17 @@ final class StockToolsManager {
         return encode(["watchlist": symbols, "count": symbols.count])
     }
 
+    private func runResearchAgent(task: AgentTask) async -> String {
+        do {
+            let agentResult = try await agentOrchestrator.execute(task: task)
+            logger.debug("✅ Agent research complete for goal: \(task.goal)")
+            return encode(["synthesis": agentResult.synthesis, "stepCount": agentResult.steps.count])
+        } catch {
+            logger.error("❌ Agent research failed: \(error)")
+            return encodeError("Research failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Tool Definitions
 
     private func toolDefinitions() -> [[String: Any]] {
@@ -291,6 +318,24 @@ final class StockToolsManager {
                     "properties": [:],
                     "required": []
                 ]
+            ],
+            [
+                "type": "function",
+                "name": "run_research_agent",
+                "description": "Run a multi-step research analysis on one or more stocks. Use for thesis, comparison, deep analysis, or comprehensive overview. Before calling this tool, verbally acknowledge the request (e.g. 'Let me research that for you, give me a moment').",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "goal":           ["type": "string",
+                                           "description": "Research goal e.g. 'full thesis on NVDA before I buy'"],
+                        "tickers":        ["type": "array",
+                                           "items": ["type": "string"],
+                                           "description": "Stock tickers involved e.g. ['NVDA', 'AMD']"],
+                        "allow_parallel": ["type": "boolean",
+                                           "description": "Set true for multi-ticker comparisons"]
+                    ],
+                    "required": ["goal"]
+                ]
             ]
         ]
     }
@@ -342,4 +387,8 @@ final class StockToolsManager {
     private func encodeError(_ message: String) -> String {
         "{\"error\": \"\(message)\"}"
     }
+}
+
+extension Notification.Name {
+    static let agentStepProgress = Notification.Name("agentStepProgress")
 }

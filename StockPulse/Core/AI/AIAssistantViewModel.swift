@@ -65,14 +65,16 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
         searchStocksUseCase:        any SearchStocksUseCaseProtocol,
         fetchWatchlistUseCase:      any FetchWatchlistUseCaseProtocol,
         addToWatchlistUseCase:      any AddToWatchlistUseCaseProtocol,
-        removeFromWatchlistUseCase: any RemoveFromWatchlistUseCaseProtocol
+        removeFromWatchlistUseCase: any RemoveFromWatchlistUseCaseProtocol,
+        agentOrchestrator:          AgentOrchestrator
     ) {
         let toolsManager = StockToolsManager(
             fetchStockUseCase:          fetchStockUseCase,
             searchStocksUseCase:        searchStocksUseCase,
             fetchWatchlistUseCase:      fetchWatchlistUseCase,
             addToWatchlistUseCase:      addToWatchlistUseCase,
-            removeFromWatchlistUseCase: removeFromWatchlistUseCase
+            removeFromWatchlistUseCase: removeFromWatchlistUseCase,
+            agentOrchestrator:          agentOrchestrator
         )
 
         self.sessionManager = RealtimeSessionManager()
