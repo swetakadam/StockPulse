@@ -17,7 +17,7 @@ struct AgentTool {
     }
 }
 
-final class AgentToolRegistry {
+final class AgentToolRegistry: AgentToolRegistryProtocol {
 
     private let logger = Logger(subsystem: "com.sweta.stockpulse", category: "Agent.Registry")
     private let tools: [AgentTool]
