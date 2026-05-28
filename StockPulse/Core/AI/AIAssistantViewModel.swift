@@ -60,6 +60,10 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
 
     private var cancellables = Set<AnyCancellable>()
     private var lastWebRTCSyncCount: Int = 0
+    // Index in self.messages of the currently-streaming assistant bubble.
+    // WebRTCManager replaces the struct (new UUID) on every delta, so we track
+    // position rather than identity.
+    private var streamingMessageIndex: Int? = nil
 
     init(
         fetchStockUseCase:          any FetchStockUseCaseProtocol,
@@ -107,6 +111,7 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
         webRTCManager.disconnect()
         messages.removeAll()
         lastWebRTCSyncCount = 0
+        streamingMessageIndex = nil
         statusMessage = "Tap to connect"
         errorMessage  = nil
     }
@@ -125,20 +130,27 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
 
                     let webRTCMessages = self.webRTCManager.messages
 
-                    // Append messages that arrived after our last sync
-                    let newMessages = Array(webRTCMessages.dropFirst(self.lastWebRTCSyncCount))
-                    if !newMessages.isEmpty {
-                        self.messages.append(contentsOf: newMessages)
-                        self.lastWebRTCSyncCount = webRTCMessages.count
-                    }
-
-                    // Keep the last WebRTC message's text in sync for streaming deltas.
-                    // TranscriptMessage.id is a stable UUID, so we can find it even if
-                    // agent progress bubbles were inserted after it in self.messages.
-                    if let lastWebRTC = webRTCMessages.last,
-                       let idx = self.messages.lastIndex(where: { $0.id == lastWebRTC.id }),
+                    // Streaming delta: WebRTCManager replaces the struct (new UUID each delta),
+                    // so track position rather than identity. Only patch when the count hasn't
+                    // changed — that's the in-place streaming-update case.
+                    if webRTCMessages.count == self.lastWebRTCSyncCount,
+                       let idx = self.streamingMessageIndex,
+                       let lastWebRTC = webRTCMessages.last,
+                       idx < self.messages.count,
                        self.messages[idx].text != lastWebRTC.text {
                         self.messages[idx].text = lastWebRTC.text
+                    }
+
+                    // Append new WebRTC messages and refresh the streaming index
+                    let newMessages = Array(webRTCMessages.dropFirst(self.lastWebRTCSyncCount))
+                    if !newMessages.isEmpty {
+                        let insertBase = self.messages.count
+                        self.messages.append(contentsOf: newMessages)
+                        self.lastWebRTCSyncCount = webRTCMessages.count
+                        // Track whichever new message is the assistant bubble for streaming
+                        for (offset, msg) in newMessages.enumerated() where msg.role == .assistant {
+                            self.streamingMessageIndex = insertBase + offset
+                        }
                     }
                 }
             }
