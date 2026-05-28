@@ -59,6 +59,7 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
     @Published var errorMessage:  String?
 
     private var cancellables = Set<AnyCancellable>()
+    private var lastWebRTCSyncCount: Int = 0
 
     init(
         fetchStockUseCase:          any FetchStockUseCaseProtocol,
@@ -105,6 +106,7 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
     func disconnect() async {
         webRTCManager.disconnect()
         messages.removeAll()
+        lastWebRTCSyncCount = 0
         statusMessage = "Tap to connect"
         errorMessage  = nil
     }
@@ -120,9 +122,21 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
                     self.isListening   = self.webRTCManager.isListening
                     self.isGPTSpeaking = self.webRTCManager.isGPTSpeaking
                     self.statusMessage = self.webRTCManager.statusMessage
-                    self.messages      = self.webRTCManager.messages
+                    let newMessages = Array(self.webRTCManager.messages.dropFirst(self.lastWebRTCSyncCount))
+                    self.messages.append(contentsOf: newMessages)
+                    self.lastWebRTCSyncCount = self.webRTCManager.messages.count
                 }
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.addObserver(
+            forName: .agentStepProgress,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let msg = note.userInfo?["message"] as? String else { return }
+            self.messages.append(TranscriptMessage(role: .system, text: msg))
+        }
     }
 }

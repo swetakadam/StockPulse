@@ -147,14 +147,18 @@ extension Container {
 
     // MARK: - SEC / 10-K
 
-    var secRepository: Factory<SECRepositoryProtocol> {
+    var azureChatClient: Factory<AzureChatClient> {
+        self { AzureChatClient() }.singleton
+    }
+
+    var secRepository: Factory<any SECRepositoryProtocol> {
         self {
-            let chatClient = AzureChatClient()
+            let chatClient = self.azureChatClient()
             let parser = TenKParser { rawHTML, section in
                 try await chatClient.parseSection(rawHTML: rawHTML, section: section)
             }
             return SECRepositoryImpl(client: SECClient(), parser: parser)
-        }
+        }.singleton
     }
 
     var fetchTenKSectionUseCase: Factory<FetchTenKSectionUseCaseProtocol> {
@@ -163,9 +167,19 @@ extension Container {
 
     // MARK: - Agent Infrastructure
 
-    var agentOrchestrator: Factory<AgentOrchestrator> {
+    var agentModelContainer: Factory<ModelContainer> {
         self {
-            let registry = AgentToolRegistry(
+            try! ModelContainer(for: StoredAgentResult.self)
+        }.singleton
+    }
+
+    var agentMemory: Factory<AgentMemory> {
+        self { AgentMemory(container: self.agentModelContainer()) }.singleton
+    }
+
+    var agentToolRegistry: Factory<AgentToolRegistry> {
+        self {
+            AgentToolRegistry(
                 fetchStockUseCase:          self.fetchStockUseCase(),
                 searchStocksUseCase:        self.searchStocksUseCase(),
                 fetchWatchlistUseCase:      self.fetchWatchlistUseCase(),
@@ -173,15 +187,17 @@ extension Container {
                 removeFromWatchlistUseCase: self.removeFromWatchlistUseCase(),
                 fetchTenKSectionUseCase:    self.fetchTenKSectionUseCase()
             )
-            let memory = AgentMemory(
-                container: try! ModelContainer(for: StoredAgentResult.self)
+        }.singleton
+    }
+
+    var agentOrchestrator: Factory<AgentOrchestrator> {
+        self {
+            AgentOrchestrator(
+                chatClient:   self.azureChatClient(),
+                toolRegistry: self.agentToolRegistry(),
+                memory:       self.agentMemory()
             )
-            return AgentOrchestrator(
-                chatClient:   AzureChatClient(),
-                toolRegistry: registry,
-                memory:       memory
-            )
-        }
+        }.singleton
     }
 
     // MARK: - AI Assistant ViewModel
