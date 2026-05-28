@@ -122,9 +122,24 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
                     self.isListening   = self.webRTCManager.isListening
                     self.isGPTSpeaking = self.webRTCManager.isGPTSpeaking
                     self.statusMessage = self.webRTCManager.statusMessage
-                    let newMessages = Array(self.webRTCManager.messages.dropFirst(self.lastWebRTCSyncCount))
-                    self.messages.append(contentsOf: newMessages)
-                    self.lastWebRTCSyncCount = self.webRTCManager.messages.count
+
+                    let webRTCMessages = self.webRTCManager.messages
+
+                    // Append messages that arrived after our last sync
+                    let newMessages = Array(webRTCMessages.dropFirst(self.lastWebRTCSyncCount))
+                    if !newMessages.isEmpty {
+                        self.messages.append(contentsOf: newMessages)
+                        self.lastWebRTCSyncCount = webRTCMessages.count
+                    }
+
+                    // Keep the last WebRTC message's text in sync for streaming deltas.
+                    // TranscriptMessage.id is a stable UUID, so we can find it even if
+                    // agent progress bubbles were inserted after it in self.messages.
+                    if let lastWebRTC = webRTCMessages.last,
+                       let idx = self.messages.lastIndex(where: { $0.id == lastWebRTC.id }),
+                       self.messages[idx].text != lastWebRTC.text {
+                        self.messages[idx].text = lastWebRTC.text
+                    }
                 }
             }
             .store(in: &cancellables)
