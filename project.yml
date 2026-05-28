@@ -94,3 +94,15 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: StockPulse
+
+schemes:
+  StockPulse:
+    build:
+      targets:
+        StockPulse: all
+        StockPulseTests: [test]
+        StockPulseUITests: [test]
+    test:
+      targets:
+        - StockPulseTests
+        - StockPulseUITests
