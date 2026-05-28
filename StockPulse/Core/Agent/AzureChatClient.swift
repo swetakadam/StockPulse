@@ -40,10 +40,12 @@ class AzureChatClient {
             system: systemPrompt,
             user: "Research goal: \(goal)",
             maxTokens: 1000,
-            jsonMode: true
+            jsonMode: false
         )
 
-        guard let data = content.data(using: .utf8),
+        // Extract the JSON block from the response (model may wrap it in markdown)
+        let jsonString = extractJSON(from: content) ?? content
+        guard let data = jsonString.data(using: .utf8),
               let plan = try? JSONDecoder().decode(AgentPlan.self, from: data) else {
             logger.error("❌ Failed to parse AgentPlan from: \(content)")
             let ticker = goal.components(separatedBy: .whitespaces)
@@ -68,24 +70,26 @@ class AzureChatClient {
         You are a research reflection agent. Review the research goal and completed steps.
         Decide if enough data has been gathered to synthesize a good answer.
 
-        Respond ONLY with valid JSON: {"decision": "continue"} or {"decision": "done"}
+        Respond with ONLY the word "continue" or "done" and nothing else.
 
         Choose "done" if: key data has been retrieved, or 3+ steps completed, or the goal is achievable with current data.
         Choose "continue" if: critical data is clearly missing.
         """
 
-        let content = try await sendMessage(
-            system: system,
-            user: context.asPromptContext(),
-            maxTokens: 100,
-            jsonMode: true
-        )
-
-        guard let data = content.data(using: .utf8),
-              let response = try? JSONDecoder().decode(AgentDecisionResponse.self, from: data) else {
+        let content: String
+        do {
+            content = try await sendMessage(
+                system: system,
+                user: context.asPromptContext(),
+                maxTokens: 20,
+                jsonMode: false
+            )
+        } catch {
+            logger.warning("⚠️ reflect() failed, defaulting to done: \(error)")
             return .done
         }
-        return response.decision
+
+        return content.lowercased().contains("continue") ? .continue : .done
     }
 
     // MARK: - Synthesize
@@ -125,6 +129,15 @@ class AzureChatClient {
             maxTokens: 2000,
             jsonMode: false
         )
+    }
+
+    // MARK: - Helpers
+
+    /// Extracts the first {...} JSON block from a response that may include markdown fences.
+    private func extractJSON(from text: String) -> String? {
+        guard let start = text.firstIndex(of: "{"),
+              let end = text.lastIndex(of: "}") else { return nil }
+        return String(text[start...end])
     }
 
     // MARK: - Core HTTP

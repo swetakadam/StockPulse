@@ -152,7 +152,11 @@ final class AgentToolRegistry: AgentToolRegistryProtocol {
     }
 
     func execute(_ action: AgentPlan.PlannedAction) async throws -> AgentStep {
-        guard let tool = tools.first(where: { $0.name == action.toolName }) else {
+        // GPT-4.1 mini (Azure) sometimes prefixes tool names with "functions." — strip it
+        let toolName = action.toolName.hasPrefix("functions.")
+            ? String(action.toolName.dropFirst("functions.".count))
+            : action.toolName
+        guard let tool = tools.first(where: { $0.name == toolName }) else {
             logger.warning("⚠️ Unknown tool: \(action.toolName)")
             return AgentStep(
                 toolName: action.toolName,
