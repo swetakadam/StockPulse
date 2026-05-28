@@ -51,6 +51,7 @@ targets:
       - package: Data
       - package: Features
       - package: WebRTC
+      - sdk: SwiftData.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sweta.stockpulse

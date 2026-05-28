@@ -62,5 +62,11 @@
     <string>$(REALTIME_DEPLOYMENT)</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>StockPulse uses your microphone to let you speak to the stock assistant.</string>
+    <key>AZURE_CHAT_ENDPOINT</key>
+    <string>$(AZURE_CHAT_ENDPOINT)</string>
+    <key>AZURE_CHAT_API_KEY</key>
+    <string>$(AZURE_CHAT_API_KEY)</string>
+    <key>AZURE_CHAT_API_VERSION</key>
+    <string>$(AZURE_CHAT_API_VERSION)</string>
 </dict>
 </plist>
