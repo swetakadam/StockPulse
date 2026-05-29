@@ -132,11 +132,13 @@ final class AgentToolRegistry: AgentToolRegistryProtocol {
                     default:                    section = .business
                     }
                     do {
+                        print("[SEC] 🚀 fetch_10k_section: \(ticker.uppercased()) / \(sectionStr)")
                         let report = try await uc6.execute(
                             ticker: ticker.uppercased(),
                             section: section
                         )
                         let text = report.business ?? report.riskFactors ?? report.mdAndA ?? report.financialStatements ?? ""
+                        print("[SEC] ✅ fetch_10k_section got \(text.count) chars for \(ticker)")
                         return AgentToolRegistry.encode([
                             "ticker": report.ticker,
                             "section": section.displayName,
@@ -144,6 +146,7 @@ final class AgentToolRegistry: AgentToolRegistryProtocol {
                             "content": String(text.prefix(3000))
                         ])
                     } catch {
+                        print("[SEC] ❌ fetch_10k_section FAILED [\(ticker)/\(sectionStr)]: \(error)")
                         return "{\"error\": \"\(error.localizedDescription)\"}"
                     }
                 }

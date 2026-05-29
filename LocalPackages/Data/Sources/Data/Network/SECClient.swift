@@ -14,25 +14,30 @@ public final class SECClient: Sendable {
     }
 
     func fetchCIK(ticker: String) async throws -> String {
-        logger.debug("🔍 Fetching CIK for \(ticker)")
+        print("[SEC] 🔍 fetchCIK: \(ticker)")
+        logger.info("🔍 Fetching CIK for \(ticker)")
         let (data, _) = try await fetch(.companyTickers)
         // Response: {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}, ...}
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] else {
+            print("[SEC] ❌ company_tickers.json malformed")
             throw SECError.parsingFailed("company_tickers.json malformed")
         }
         let upper = ticker.uppercased()
         for (_, entry) in json {
             if let t = entry["ticker"] as? String, t.uppercased() == upper,
                let cik = entry["cik_str"] as? Int {
-                logger.debug("✅ CIK for \(ticker): \(cik)")
+                print("[SEC] ✅ CIK for \(ticker): \(cik)")
+                logger.info("✅ CIK for \(ticker): \(cik)")
                 return String(cik)
             }
         }
+        print("[SEC] ❌ ticker not found: \(ticker)")
         throw SECError.tickerNotFound(ticker)
     }
 
     func fetchLatest10KAccession(cik: String) async throws -> SECFilingInfo {
-        logger.debug("📄 Fetching submissions for CIK \(cik)")
+        print("[SEC] 📄 fetchLatest10KAccession: CIK \(cik)")
+        logger.info("📄 Fetching submissions for CIK \(cik)")
         let (data, _) = try await fetch(.submissions(cik: cik))
 
         // fiscalYearEnd lives at the TOP company level — NOT inside recent[].
@@ -44,10 +49,12 @@ public final class SECClient: Sendable {
               let accessions = recent["accessionNumber"] as? [String],
               let dates = recent["filingDate"] as? [String]
         else {
+            print("[SEC] ❌ submissions JSON malformed for CIK \(cik)")
             throw SECError.parsingFailed("submissions JSON malformed for CIK \(cik)")
         }
 
         guard let idx = forms.firstIndex(of: "10-K") else {
+            print("[SEC] ❌ no 10-K found for CIK \(cik)")
             throw SECError.noFilingsFound(cik)
         }
 
@@ -58,7 +65,6 @@ public final class SECClient: Sendable {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let filedDate = formatter.date(from: dateStr) ?? Date()
-        // Fiscal year: 10-K filed in 2024 covers fiscal year 2024 (companies vary, but this is close enough)
         let year = Calendar.current.component(.year, from: filedDate)
 
         // recent["primaryDocument"] gives the main HTM filename directly — skip index fetch
@@ -68,14 +74,15 @@ public final class SECClient: Sendable {
            !primaryDocs[idx].isEmpty {
             let docName = primaryDocs[idx]
             docURL = URL(string: "https://www.sec.gov/Archives/edgar/data/\(cik)/\(accessionNoDashes)/\(docName)")!
-            logger.debug("✅ 10-K document via primaryDocument: \(docName)")
+            print("[SEC] ✅ primaryDocument: \(docName)")
+            logger.info("✅ 10-K document: \(docName)")
         } else {
-            logger.debug("⚠️ No primaryDocument — falling back to index fetch")
+            print("[SEC] ⚠️ No primaryDocument — falling back to index fetch")
             let indexURL = URL(string: "https://www.sec.gov/Archives/edgar/data/\(cik)/\(accessionNoDashes)/\(rawAccession)-index.json")!
             docURL = try await fetchDocumentURL(indexURL: indexURL, cik: cik, accession: accessionNoDashes, rawAccession: rawAccession)
         }
 
-        logger.debug("📎 Filing: \(rawAccession) FY\(year) → \(docURL)")
+        print("[SEC] 📎 \(rawAccession) FY\(year) → \(docURL)")
         return SECFilingInfo(
             accession: rawAccession,
             fiscalYear: year,
@@ -85,7 +92,8 @@ public final class SECClient: Sendable {
     }
 
     func fetchRawDocument(url: URL) async throws -> String {
-        logger.debug("⬇️ Downloading 10-K document: \(url.lastPathComponent)")
+        print("[SEC] ⬇️ Downloading: \(url.lastPathComponent)")
+        logger.info("⬇️ Downloading 10-K: \(url.lastPathComponent)")
         var request = URLRequest(url: url)
         request.setValue("StockPulse/1.0 sshinde5ster@gmail.com", forHTTPHeaderField: "User-Agent")
         request.setValue("text/html, */*", forHTTPHeaderField: "Accept")
@@ -94,11 +102,13 @@ public final class SECClient: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[SEC] ❌ HTTP \(status) for \(url.lastPathComponent)")
             logger.error("❌ Document fetch HTTP \(status): \(url)")
             throw SECError.documentFetchFailed(url)
         }
         let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
-        logger.debug("✅ Downloaded \(data.count / 1024) KB for \(url.lastPathComponent)")
+        print("[SEC] ✅ Downloaded \(data.count / 1024) KB — \(url.lastPathComponent)")
+        logger.info("✅ Downloaded \(data.count / 1024) KB")
         return html
     }
 
