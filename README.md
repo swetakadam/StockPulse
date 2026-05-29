@@ -1,8 +1,8 @@
 # StockPulse 📈
 
-A production-grade iOS stock market app built with SwiftUI, Clean Architecture, MVVM, and an AI Voice Assistant powered by Azure OpenAI Realtime API.
+A production-grade iOS stock market app built with SwiftUI, Clean Architecture, MVVM, an AI Voice Assistant, and an Agentic Research Engine — all powered by Azure OpenAI.
 
-> Built as a hands-on exercise in iOS Clean Architecture using Claude Code as an AI pair programmer.
+> Built as a hands-on exercise in iOS Clean Architecture and agentic AI using Claude Code as an AI pair programmer.
 
 ---
 
@@ -23,7 +23,9 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 | DI | Factory by Michael Long | Protocol-first, testable |
 | Navigation | Coordinator + NavigationPath | Type-safe, deep-link ready |
 | Stock API | Finnhub (free tier) | 60 calls/min, no daily cap |
+| SEC Filings | EDGAR public API | Free, no key required |
 | AI Voice | Azure OpenAI gpt-realtime-mini | WebRTC, tool calling |
+| AI Research | Azure OpenAI GPT-4.1 mini | Plan/reflect/synthesize loop |
 | WebRTC | stasel/WebRTC M114 | Native iOS WebRTC |
 | Caching | Two-level (Memory + UserDefaults) | Instant loads, offline support |
 | Project | XcodeGen | No .pbxproj conflicts |
@@ -68,18 +70,61 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 
 ### 🤖 AI Voice Assistant
 - Azure OpenAI gpt-realtime-mini via WebRTC
-- 6 tools wired to real Use Cases:
+- 7 tools wired to real Use Cases:
   - `get_stock_price` → FetchStockUseCase
   - `search_stock` → SearchStocksUseCase
   - `add_to_watchlist` → AddToWatchlistUseCase
   - `remove_from_watchlist` → RemoveFromWatchlistUseCase
   - `navigate_to_stock` → NavigationStateManager
   - `get_watchlist` → FetchWatchlistUseCase
+  - `run_research_agent` → AgentOrchestrator (agentic loop)
 - Smart audio routing (speaker / headphones / Bluetooth)
-- Real-time transcript with message bubbles
-- Typing indicator animation
+- Real-time transcript with per-response message bubbles
+- User transcription bubbles in correct chronological order
+- Progress bubbles showing each agent reasoning step live
+- 60-second silence auto-disconnect
 - Stock-only system instructions (refuses off-topic questions)
 - NotificationCenter sync — watchlist star updates instantly from AI actions
+
+### 🔬 Agentic Research Engine
+Triggered when you ask for research, analysis, or a deep dive on any stock.
+
+**Flow:**
+1. Voice model calls `run_research_agent` with the research goal
+2. `AgentOrchestrator` asks GPT-4.1 mini to create a JSON plan (which tools to run and why)
+3. Tools execute — price lookups run in parallel, 10-K fetches run sequentially
+4. `reflect()` checks if enough data was gathered; loops if not
+5. `synthesize()` produces a structured spoken briefing from all gathered data
+6. Result is spoken back to the user via WebRTC audio
+
+**Plan → Execute → Reflect → Synthesize loop:**
+```
+AgentOrchestrator
+  ├── plan()       GPT-4.1 mini → JSON action list
+  ├── execute()    AgentToolRegistry runs each tool
+  │   ├── get_stock_price   → Finnhub API
+  │   ├── fetch_10k_section → SEC EDGAR → HTML strip → GPT parse
+  │   ├── search_stock      → Finnhub search
+  │   └── get/add/remove watchlist → WatchlistStore
+  ├── reflect()    GPT-4.1 mini → "continue" or "done"
+  └── synthesize() GPT-4.1 mini → structured spoken briefing
+```
+
+**SEC 10-K pipeline:**
+```
+fetch_10k_section(ticker, section)
+  → EDGAR /company_tickers.json → CIK lookup
+  → EDGAR /submissions/{CIK}.json → latest 10-K accession + HTM filename
+  → EDGAR /Archives/…/{ticker}-{date}.htm → download (1–2 MB)
+  → Strip HTML tags, find section anchor (ITEM 1., ITEM 1A., etc.)
+  → Extract 25,000 chars from anchor
+  → GPT-4.1 mini → 4–6 sentence plain-English summary
+  → Cached per document URL (NSCache, limit 5) — no re-downloads
+```
+
+**AgentMemory (SwiftData):**
+- Stores past research results keyed by ticker + section
+- Used in future: skip re-fetching if data is fresh
 
 ---
 
@@ -150,9 +195,16 @@ StockPulse/
         │   ├── RealtimeConfig.swift      # All config from Bundle/xcconfig
         │   ├── RealtimeSessionManager.swift
         │   ├── WebRTCManager.swift
-        │   ├── StockToolsManager.swift   # Tool calls → Use Cases
+        │   ├── StockToolsManager.swift   # Tool calls → Use Cases + Agent
         │   ├── AIAssistantViewModel.swift
         │   └── AIAssistantView.swift
+        ├── Agent/       # Agentic Research Engine
+        │   ├── AzureChatConfig.swift     # GPT-4.1 mini endpoint config
+        │   ├── AzureChatClient.swift     # plan/reflect/synthesize/parseSection
+        │   ├── AgentToolRegistry.swift   # 6 tools wired to Use Cases
+        │   ├── AgentOrchestrator.swift   # Plan→Execute→Reflect→Synthesize loop
+        │   ├── AgentMemory.swift         # SwiftData — past research results
+        │   └── AgentModels.swift         # AgentPlan, AgentStep, AgentContext
         ├── Navigation/  # Coordinators, AppRoute, deep links
         └── DI/          # AppContainer — all Factory registrations
 ```
@@ -162,17 +214,22 @@ StockPulse/
 ```
 User Voice Input
       ↓ WebRTC audio
-Azure gpt-realtime-mini
-      ↓ tool_call (data channel)
-StockToolsManager
-      ↓ constructor injection
-Use Cases (Domain)
-      ↓
-Repository (Data) → Finnhub API / Cache
-      ↑
-tool_result (data channel)
-      ↑
-GPT speaks response
+Azure gpt-realtime-mini (WebRTC session)
+      ↓ tool_call: simple tools (data channel)
+StockToolsManager → Use Cases → Finnhub / WatchlistStore
+      ↑ tool_result
+      ↓ tool_call: run_research_agent
+AgentOrchestrator
+  ├── plan()        → GPT-4.1 mini → JSON plan
+  ├── execute()     → AgentToolRegistry
+  │   ├── get_stock_price       → Finnhub API
+  │   ├── fetch_10k_section     → EDGAR API → GPT-4.1 mini parse
+  │   ├── search_stock          → Finnhub API
+  │   └── watchlist tools       → WatchlistStore
+  ├── reflect()     → GPT-4.1 mini → continue / done
+  └── synthesize()  → GPT-4.1 mini → spoken briefing text
+      ↑ tool_result (synthesis text)
+GPT speaks synthesized research
       ↑ WebRTC audio
 User hears response
 ```
@@ -294,6 +351,35 @@ open StockPulse.xcodeproj
 
 ---
 
+## Testing the Agentic Research Feature
+
+Connect to the AI Voice Assistant and try these queries:
+
+| Query | Expected behaviour |
+|-------|--------------------|
+| "What's the price of TSLA?" | Direct price lookup — no agent loop |
+| "Add Apple to my watchlist" | Watchlist write — no agent loop |
+| "Research NVIDIA" | Agent: 10-K business section → synthesized briefing |
+| "Do a deep dive on Apple" | Agent: 10-K business + price → detailed analysis |
+| "Compare Apple and Microsoft" | Agent: 10-K for both companies → side-by-side synthesis |
+| "Research CoStar Group and Zillow" | Agent: 10-K for both → real estate sector comparison |
+| "Analyze the risks for Tesla" | Agent: 10-K risk factors section → risk briefing |
+
+**What to watch for:**
+- Progress system bubbles show each agent step with its reasoning
+- `[SEC.Client]` log entries confirm CIK lookup + document download
+- `[Agent.Registry]` log entries show the tool result (first 300 chars)
+- Synthesis should lead with 10-K content (business model, revenue drivers) before price
+
+**Log stream during testing:**
+```bash
+xcrun simctl spawn booted log stream \
+  --predicate 'subsystem == "com.sweta.stockpulse"' \
+  --level info 2>&1
+```
+
+---
+
 ## Lessons Learned / Gotchas
 
 ### 1. xcconfig Double Slash
@@ -360,6 +446,20 @@ NotificationCenter.default.post(name: .watchlistDidChange,
     userInfo: ["symbol": symbol, "action": "added"])
 ```
 
+### 10. EDGAR `fiscalYearEnd` is at Company Level, Not `recent[]`
+The EDGAR submissions JSON has `fiscalYearEnd` at the root company object,
+not inside the `recent` filings array. Guarding on it inside `recent` always
+fails with `parsingFailed`. Use `recent["primaryDocument"]` for the HTM filename.
+
+### 11. 10-K HTML — Section Anchor Search
+The first 8,000 chars of a raw 10-K HTM is DOCTYPE/CSS — no content.
+Strip all HTML tags first, then search for the ITEM anchor (`ITEM 1.`,
+`ITEM 1A.`, `ITEM 7.`, `ITEM 8.`) and extract 25,000 chars from that point.
+
+### 12. OSLog `.debug` is Suppressed on Simulator by Default
+Use `--level info` in `log stream`, not `--level debug`.
+Or use `logger.info()` for anything you need to observe during testing.
+
 ---
 
 ## Future Roadmap
@@ -372,6 +472,9 @@ NotificationCenter.default.post(name: .watchlistDidChange,
 - [ ] Unit tests for all Use Cases and ViewModels
 - [ ] App icon and launch screen
 - [ ] Company names via Finnhub profile on Dashboard
+- [ ] AgentMemory cache — skip re-fetching fresh 10-K data across sessions
+- [ ] riskFactors / mdAndA agent plans — planner currently defaults to business section
+- [ ] Multi-turn research — follow-up questions that refine previous research
 
 ---
 
@@ -379,13 +482,14 @@ NotificationCenter.default.post(name: .watchlistDidChange,
 
 | Metric | Count |
 |--------|-------|
-| Swift files | 75+ |
+| Swift files | 90+ |
 | SPM packages | 3 (Domain, Data, Features) |
-| Use cases | 10 |
+| Use cases | 12 |
 | ViewModels | 5 |
 | Screens | 5 (Dashboard, Detail, Search, Watchlist, AI) |
-| AI Tools | 6 |
-| API endpoints | 7 |
+| AI Tools (WebRTC) | 7 (incl. run_research_agent) |
+| Agent Tools (loop) | 6 (price, search, watchlist ×3, 10-K) |
+| External APIs | 3 (Finnhub, Azure OpenAI, SEC EDGAR) |
 
 ---
 

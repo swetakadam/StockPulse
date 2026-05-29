@@ -22,14 +22,18 @@ Bundle ID: com.sweta.stockpulse
 | 6 | Stock Detail (Price, Stats, Company Info) | ✅ |
 | 7 | Search (Debounced, Recent, Trending) | ✅ |
 | 8 | Watchlist (List, Sort, Swipe Delete) | ✅ |
-| 9 | Polish and Testing | 🔄 In Progress |
+| 9 | AI Voice Assistant (WebRTC, tool calling, transcription) | ✅ |
+| 10 | Agentic Research Engine (plan/reflect/synthesize + SEC 10-K) | ✅ |
+| 11 | Polish and Testing | 🔄 In Progress |
 
-### API
-- Provider: Finnhub (https://finnhub.io)
-- Free tier: 60 calls/minute
-- Auth: token query parameter via xcconfig
-- Cache: 24hr TTL (free tier) / 60s TTL (premium tier)
-- Switch provider: change CachePolicy.current in Domain
+### APIs
+- **Finnhub** — stock data. Free tier: 60 calls/min. Auth via xcconfig token.
+- **Azure OpenAI gpt-realtime-mini** — WebRTC voice session. Ephemeral token via APIM.
+- **Azure OpenAI GPT-4.1 mini** — Agent planner/reflector/synthesizer/10-K parser. REST via APIM.
+- **SEC EDGAR** — 10-K filings. Public, no API key. User-Agent header required.
+  - `company_tickers.json` → CIK lookup
+  - `submissions/{CIK}.json` → latest 10-K accession + primaryDocument filename
+  - `Archives/edgar/data/{CIK}/{accession}/{file}.htm` → full filing HTML
 
 ---
 
@@ -105,8 +109,13 @@ StockPulse/
 │   │       │   ├── StockCache.swift
 │   │       │   ├── WatchlistStore.swift
 │   │       │   └── RecentSearchStore.swift
-│   │       └── Repositories/
-│   │           └── StockRepositoryImpl.swift
+│   │       ├── Repositories/
+│   │       │   └── StockRepositoryImpl.swift
+│   │       │   └── SECRepositoryImpl.swift  # fetchCIK, fetchLatest10KAccession, fetchSectionText (HTML cache)
+│   │       └── Network/SEC/
+│   │           ├── SECClient.swift          # EDGAR API: CIK lookup, submissions, raw HTML download
+│   │           ├── SECEndpoint.swift        # URL definitions for EDGAR endpoints
+│   │           └── TenKParser.swift         # Closure-injected LLM parser
 │   │
 │   └── Features/                        # Depends on Domain + Factory
 │       └── Sources/Features/
@@ -144,6 +153,13 @@ StockPulse/
         │   ├── WatchlistCoordinator.swift
         │   ├── StockDetailCoordinator.swift
         │   └── SheetCoordinator.swift
+        ├── Agent/
+        │   ├── AzureChatConfig.swift    # GPT-4.1 mini endpoint + api-key from xcconfig
+        │   ├── AzureChatClient.swift    # plan/reflect/synthesize/parseSection (class, not final — subclassable for tests)
+        │   ├── AgentModels.swift        # AgentPlan, AgentStep, AgentContext, AgentDecision, AgentToolSchema
+        │   ├── AgentToolRegistry.swift  # 6 tools wired to Domain use cases
+        │   ├── AgentOrchestrator.swift  # plan→execute→reflect loop, progressHandler for UI
+        │   └── AgentMemory.swift        # SwiftData model: StoredAgentResult
         ├── DI/
         │   └── AppContainer.swift       # ALL Factory registrations
         ├── DesignSystem/
@@ -486,6 +502,29 @@ decoder.dateDecodingStrategy = .secondsSince1970
 // Both Data and Features can import Domain
 ```
 
+### EDGAR `fiscalYearEnd` guard always fails
+```swift
+// WRONG — fiscalYearEnd is at company root level, not inside recent[]
+guard let fiscalYearEnds = recent["fiscalYearEnd"] as? [String] else { throw }
+
+// FIX — remove from guard; use recent["primaryDocument"] for the HTM filename
+if let primaryDocs = recent["primaryDocument"] as? [String], idx < primaryDocs.count {
+    docURL = URL(string: ".../\(primaryDocs[idx])")!
+}
+```
+
+### 10-K HTML — section content is never in first 8,000 chars
+The raw 10-K HTM starts with DOCTYPE + CSS, not filing content.
+Strip all `<[^>]+>` tags first, then search for the section anchor
+("ITEM 1.", "ITEM 1A.", "ITEM 7.", "ITEM 8."), and extract 25,000 chars from there.
+
+### OSLog `.debug` is suppressed in simulator log stream by default
+Use `logger.info()` for anything you need to observe in testing.
+Log stream command: `xcrun simctl spawn booted log stream --predicate 'subsystem == "com.sweta.stockpulse"' --level info`
+
+### AzureChatClient must be `class`, not `final class`
+Tests subclass it to inject mock responses. Do not make it `final`.
+
 ---
 
 ## Testing Strategy
@@ -508,13 +547,16 @@ xcodebuild test -scheme StockPulse \
 - [ ] Company names show symbol until profile endpoint loads
 - [ ] Auth flow is placeholder
 - [ ] Notifications tab is placeholder
-- [ ] Unit tests (Phase 9)
-- [ ] App icon + launch screen (Phase 9)
+- [ ] Unit tests (Phase 11)
+- [ ] App icon + launch screen (Phase 11)
 - [ ] Push notifications not wired
+- [ ] Agent synthesis length — GPT-4.1 mini tends to produce 3-sentence summaries despite longer-form instructions
+- [ ] AgentMemory not yet used for cache lookups — stored but not read back
+- [ ] Agent planner only fetches "business" 10-K section; riskFactors/mdAndA require explicit user ask
 
 ## Future Features (designed for, not built)
 - Push Notifications (APNs) — NavigationStateManager ready
 - Live Activities (ActivityKit)
 - Widget support (WidgetKit)
-- AI Voice Assistant (WebRTC) — VoiceIntent enum future-proofed
 - Universal Links — AppCoordinator.handleUniversalLink() ready
+- Multi-turn research memory — AgentMemory SwiftData model is ready, use it to skip re-fetching
