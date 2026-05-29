@@ -308,13 +308,17 @@ final class WebRTCManager: NSObject, ObservableObject {
                 self?.isListening   = false
                 self?.statusMessage = "Processing..."
             }
+            // Post before the model responds so the ViewModel can reserve a slot
+            // at the correct position — transcription arrives too late to append normally.
+            NotificationCenter.default.post(name: .userSpeechStopped, object: nil)
 
         case "conversation.item.input_audio_transcription.completed":
             if let transcript = json["transcript"] as? String, !transcript.isEmpty {
-                let message = TranscriptMessage(role: .user, text: transcript)
-                DispatchQueue.main.async { [weak self] in
-                    self?.messages.append(message)
-                }
+                NotificationCenter.default.post(
+                    name: .userTranscriptReady,
+                    object: nil,
+                    userInfo: ["transcript": transcript]
+                )
             }
 
         case "response.audio.started":
@@ -485,4 +489,11 @@ extension WebRTCManager: RTCDataChannelDelegate {
         guard let text = String(data: buffer.data, encoding: .utf8) else { return }
         handleDataChannelMessage(text)
     }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let userSpeechStopped  = Notification.Name("userSpeechStopped")
+    static let userTranscriptReady = Notification.Name("userTranscriptReady")
 }

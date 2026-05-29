@@ -66,6 +66,10 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
     // so we must track the exact array positions in both arrays rather than using .last.
     private var streamingMessageIndex: Int? = nil   // position in self.messages
     private var streamingWebRTCIndex: Int? = nil    // position in webRTCManager.messages
+    // Slot reserved for user transcription. Inserted on speech_stopped (before the model
+    // responds) so the bubble appears in the correct chronological position. Filled when
+    // whisper transcription arrives (which is always late — after the assistant response).
+    private var pendingUserBubbleIndex: Int? = nil
 
     init(
         fetchStockUseCase:          any FetchStockUseCaseProtocol,
@@ -112,9 +116,10 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
     func disconnect() async {
         webRTCManager.disconnect()
         messages.removeAll()
-        lastWebRTCSyncCount = 0
+        lastWebRTCSyncCount   = 0
         streamingMessageIndex = nil
         streamingWebRTCIndex  = nil
+        pendingUserBubbleIndex = nil
         statusMessage = "Tap to connect"
         errorMessage  = nil
     }
@@ -171,6 +176,32 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
             guard let self,
                   let msg = note.userInfo?["message"] as? String else { return }
             self.messages.append(TranscriptMessage(role: .system, text: msg))
+        }
+
+        // Insert a "..." placeholder at the current position the moment the user stops
+        // speaking — before the model responds — so the bubble lands in the right order.
+        NotificationCenter.default.addObserver(
+            forName: .userSpeechStopped,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.pendingUserBubbleIndex = self.messages.count
+            self.messages.append(TranscriptMessage(role: .user, text: "..."))
+        }
+
+        // When whisper finishes (always late), fill in the placeholder in place.
+        NotificationCenter.default.addObserver(
+            forName: .userTranscriptReady,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self,
+                  let transcript = note.userInfo?["transcript"] as? String else { return }
+            if let idx = self.pendingUserBubbleIndex, idx < self.messages.count {
+                self.messages[idx].text = transcript
+                self.pendingUserBubbleIndex = nil
+            }
         }
     }
 }
