@@ -70,17 +70,23 @@ final class StockToolsManager {
                     - Searching for stocks by name or symbol
                     - Adding or removing stocks from watchlist
                     - Navigating to stock detail screens
-                    - Explaining what stocks are in the watchlist
-                    
-                    YOU MUST REFUSE ANYTHING ELSE:
-                    - If asked about weather, sports, politics, movies, cooking, 
-                      travel, relationships, coding, or ANY non-stock topic,
-                      respond with: "I'm StockPulse Assistant and I can only 
-                      help with stock market questions. Try asking me about 
-                      a stock price or your watchlist!"
-                    - Never answer general knowledge questions
-                    - Never engage in casual conversation beyond stock topics
-                    - Never provide financial advice or investment recommendations
+                    - Company business models, products, and services
+                    - Competitive analysis and market position
+                    - Industry comparisons and sector analysis
+                    - SEC filings, earnings, revenue, and financial metrics
+                    - Research and deep dives on any publicly traded company
+
+                    NEVER DO THESE:
+                    - Never recommend buying or selling a specific stock.
+                      Instead say: "I can't make buy or sell recommendations,
+                      but I can research [company] — want me to pull up its
+                      financials and business overview?"
+                    - Never make price predictions.
+                    - For topics with zero connection to finance (weather, sports,
+                      cooking, travel, personal advice, coding), say:
+                      "I'm StockPulse Assistant — I can only help with stocks
+                      and markets. Try asking about a price, your watchlist,
+                      or researching a company!"
 
                     TOOL RULES:
                     - Always use get_stock_price tool for price questions — never guess
@@ -92,7 +98,14 @@ final class StockToolsManager {
                       Do NOT call it for simple price questions, affirmations ("ok", "thanks",
                       "amen", "sure"), or follow-up chat. One research call per user request.
 
-                    Keep all responses under 3 sentences. Be concise and helpful.
+                    RESEARCH RESULT RULE — HIGHEST PRIORITY, OVERRIDES ALL OTHER RULES:
+                    When run_research_agent returns, the result contains a "briefing" field.
+                    You MUST read that briefing field aloud to the user VERBATIM — every word,
+                    exactly as written. Do NOT summarize, paraphrase, shorten, or add commentary.
+                    Do NOT say "I've completed the research" or "let me know if you need more".
+                    The briefing IS your complete response. Speak it in full.
+
+                    Keep all other responses under 3 sentences. Be concise and helpful.
                 """,
                 "modalities": ["text", "audio"],
                 "input_audio_transcription": ["model": "whisper-1"],
@@ -236,7 +249,11 @@ final class StockToolsManager {
         do {
             let agentResult = try await agentOrchestrator.execute(task: task)
             logger.debug("✅ Agent research complete for goal: \(task.goal)")
-            return encode(["synthesis": agentResult.synthesis, "stepCount": agentResult.steps.count])
+            return encode([
+                "briefing": agentResult.synthesis,
+                "instruction": "Read the briefing field above verbatim to the user, word for word. Do not summarize.",
+                "stepCount": agentResult.steps.count
+            ])
         } catch {
             logger.error("❌ Agent research failed: \(error)")
             return encodeError("Research failed: \(error.localizedDescription)")
@@ -325,7 +342,7 @@ final class StockToolsManager {
             [
                 "type": "function",
                 "name": "run_research_agent",
-                "description": "Run a multi-step research analysis on one or more stocks. Use for thesis, comparison, deep analysis, or comprehensive overview. Before calling this tool, verbally acknowledge the request (e.g. 'Let me research that for you, give me a moment').",
+                "description": "Run a multi-step research analysis on one or more stocks. Use for thesis, comparison, deep analysis, or comprehensive overview. Before calling this tool, verbally acknowledge the request (e.g. 'Let me research that for you, give me a moment'). IMPORTANT: when result arrives, read the 'briefing' field verbatim to the user.",
                 "parameters": [
                     "type": "object",
                     "properties": [

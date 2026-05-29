@@ -25,6 +25,7 @@ final class WebRTCManager: NSObject, ObservableObject {
     @Published var isConnected:   Bool   = false
     @Published var isListening:   Bool   = false
     @Published var isGPTSpeaking: Bool   = false
+    @Published var isMuted:       Bool   = false
     @Published var statusMessage: String = "Ready"
     @Published var messages: [TranscriptMessage] = []
 
@@ -229,9 +230,20 @@ final class WebRTCManager: NSObject, ObservableObject {
             self?.isConnected   = false
             self?.isListening   = false
             self?.isGPTSpeaking = false
+            self?.isMuted       = false
             self?.statusMessage = "Disconnected"
         }
         logger.debug("🔌 Disconnected")
+    }
+
+    func toggleMute() {
+        guard let track = localAudioTrack else { return }
+        let nowMuted = track.isEnabled   // will become muted after flip
+        track.isEnabled = !track.isEnabled
+        DispatchQueue.main.async { [weak self] in
+            self?.isMuted = nowMuted
+        }
+        logger.debug("🎤 Mic \(nowMuted ? "muted" : "unmuted") by user")
     }
 
     // MARK: - Silence Timer
@@ -374,18 +386,26 @@ final class WebRTCManager: NSObject, ObservableObject {
             }
 
         case "output_audio_buffer.started":
-            // GPT started speaking — mute mic to prevent echo
+            // Mute mic during GPT playback to prevent echo feedback.
+            // User can tap the mute button to unmute and interrupt.
             DispatchQueue.main.async { [weak self] in
                 self?.localAudioTrack?.isEnabled = false
+                self?.isMuted       = true
                 self?.isGPTSpeaking = true
                 self?.statusMessage = "Speaking..."
             }
 
         case "output_audio_buffer.stopped":
-            // GPT finished speaking — unmute mic and start silence countdown
             startSilenceTimer()
             DispatchQueue.main.async { [weak self] in
                 self?.localAudioTrack?.isEnabled = true
+                self?.isMuted       = false
+                self?.isGPTSpeaking = false
+                self?.statusMessage = "🟢 Connected — speak now!"
+            }
+
+        case "response.cancelled":
+            DispatchQueue.main.async { [weak self] in
                 self?.isGPTSpeaking = false
                 self?.statusMessage = "🟢 Connected — speak now!"
             }

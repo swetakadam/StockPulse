@@ -69,9 +69,12 @@ struct AIAssistantView<ViewModel: AIAssistantViewModelProtocol>: View {
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 if let last = viewModel.messages.last {
-                    withAnimation {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+            .onChange(of: viewModel.messages.last?.text) { _, _ in
+                if let last = viewModel.messages.last {
+                    proxy.scrollTo(last.id, anchor: .bottom)
                 }
             }
         }
@@ -110,6 +113,10 @@ struct AIAssistantView<ViewModel: AIAssistantViewModelProtocol>: View {
                     .padding(.horizontal)
             }
 
+            if viewModel.isConnected {
+                muteToggleButton
+            }
+
             Button {
                 if viewModel.isConnected {
                     Task { await viewModel.disconnect() }
@@ -136,6 +143,35 @@ struct AIAssistantView<ViewModel: AIAssistantViewModelProtocol>: View {
         }
         .padding(.vertical, 12)
         .background(Color(.systemGroupedBackground))
+    }
+
+    private var muteToggleButton: some View {
+        Button {
+            viewModel.toggleMute()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: viewModel.isMuted ? "mic.slash.fill" : "mic.fill")
+                    .font(.title3)
+                Text(viewModel.isMuted ? "Muted — tap to speak" : "Mic on")
+                    .fontWeight(.medium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(viewModel.isMuted
+                        ? Color(.systemRed).opacity(0.12)
+                        : Color(.systemGreen).opacity(0.12))
+            .foregroundStyle(viewModel.isMuted ? Color(.systemRed) : Color(.systemGreen))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(
+                        viewModel.isMuted ? Color(.systemRed).opacity(0.4) : Color(.systemGreen).opacity(0.4),
+                        lineWidth: 1
+                    )
+            )
+        }
+        .padding(.horizontal)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isMuted)
     }
 }
 
@@ -225,11 +261,13 @@ private final class MockAIAssistantViewModel: ObservableObject,
     @Published var isConnected:   Bool    = true
     @Published var isListening:   Bool    = false
     @Published var isGPTSpeaking: Bool    = false
+    @Published var isMuted:       Bool    = false
     @Published var statusMessage: String  = "🟢 Connected — speak now!"
     @Published var errorMessage:  String? = nil
 
     func connect()    async {}
     func disconnect() async {}
+    func toggleMute() { isMuted.toggle() }
 }
 
 #Preview {

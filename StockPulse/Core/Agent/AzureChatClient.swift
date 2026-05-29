@@ -101,24 +101,20 @@ class AzureChatClient {
     // MARK: - Synthesize
 
     func synthesize(context: AgentContext) async throws -> String {
+        // Use the pre-formatted synthesis when 10-K or price data is available.
+        // parseSection() already produced 4-6 sentence summaries per section —
+        // passing them through GPT-4.1 mini again only collapses them into 1-2 lines.
+        let direct = context.buildSynthesis()
+        if !direct.isEmpty { return direct }
+
+        // Fallback: no structured data — ask the LLM to summarize what it knows
         let system = """
-        You are a stock research analyst delivering a briefing. Using ALL available data below, \
-        write a structured response with these sections — do not skip any section that has data:
-
-        1. Business model (1-2 sentences per company, from 10-K if available)
-        2. Key revenue drivers or growth areas (1-2 sentences)
-        3. Main risks (1 sentence)
-        4. Current stock price and today's move (1 sentence per company)
-        5. Comparison summary if multiple companies (1 sentence)
-
-        Rules: minimum 5 sentences total. Use specific facts and numbers from the data. \
-        Do not end with "let me know" or invitations to ask more. Do not add disclaimers. \
-        If a section has no data, skip it silently.
+        You are a stock research analyst. Summarize the research data below in 4-6 sentences. \
+        Include specific products, numbers, and facts. No disclaimers.
         """
-
         return try await sendMessage(
             system: system,
-            user: context.asPromptContext(),
+            user: context.asSynthesisContext(),
             maxTokens: 1500,
             jsonMode: false
         )
@@ -206,8 +202,15 @@ class AzureChatClient {
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = json["choices"] as? [[String: Any]],
-              let message = choices.first?["message"] as? [String: Any],
-              let content = message["content"] as? String else {
+              let message = choices.first?["message"] as? [String: Any] else {
+            let raw = String(data: data, encoding: .utf8) ?? "unreadable"
+            logger.error("❌ noResponse — raw body: \(raw.prefix(400))")
+            throw AzureChatError.noResponse
+        }
+        // content can be null when finish_reason is content_filter or length
+        guard let content = message["content"] as? String else {
+            let finishReason = (choices.first?["finish_reason"] as? String) ?? "unknown"
+            logger.error("❌ content null — finish_reason: \(finishReason)")
             throw AzureChatError.noResponse
         }
 

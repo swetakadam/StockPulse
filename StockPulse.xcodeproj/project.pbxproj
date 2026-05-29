@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0026DF262F99D936952A3CF2 /* SwiftData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4BA63D625135E4196CDE3702 /* SwiftData.framework */; };
 		0212A2BD44DBAF76BDFEA083 /* Logger+StockPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28BEB332D36D7AAAB7F92F97 /* Logger+StockPulse.swift */; };
 		07B30E15B8ADCC03FBA6031D /* Factory in Frameworks */ = {isa = PBXBuildFile; productRef = DC6896661ADBC87262097068 /* Factory */; };
 		07C0B74BB2F56473B5407B5A /* AzureChatClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C7A3528A62BC0497DAF121 /* AzureChatClient.swift */; };
@@ -89,6 +90,7 @@
 		31C7A3528A62BC0497DAF121 /* AzureChatClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AzureChatClient.swift; sourceTree = "<group>"; };
 		3732740170478811D2DAEBE2 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		3EE2A5F1131C39CE316A5FB9 /* SheetRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetRoute.swift; sourceTree = "<group>"; };
+		4BA63D625135E4196CDE3702 /* SwiftData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftData.framework; path = System/Library/Frameworks/SwiftData.framework; sourceTree = SDKROOT; };
 		4C58A57D2F268BF7D21AAEC4 /* AzureChatConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AzureChatConfig.swift; sourceTree = "<group>"; };
 		4D9E00231F33697BFC007960 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
 		500846AB0FCFF3827474F114 /* AgentMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentMemory.swift; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 				7C057EA9B1B142262BF0AE47 /* Data in Frameworks */,
 				AB3E43B624407583DE7BCA7E /* Features in Frameworks */,
 				F43B5F278A51F2576706012D /* WebRTC in Frameworks */,
+				0026DF262F99D936952A3CF2 /* SwiftData.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +240,7 @@
 				0E931451948DE8F2E73F6559 /* StockPulse */,
 				C53DD3420C85626EE2306886 /* StockPulseTests */,
 				A7313FF73D5EE6CB10B6D373 /* StockPulseUITests */,
+				BCF1CB9B2845B9495A69621D /* Frameworks */,
 				ACB0F3CB12F97F9FA64D4D0F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -308,6 +312,14 @@
 				D590B5CC0970772B055817B6 /* AppContainer.swift */,
 			);
 			path = DI;
+			sourceTree = "<group>";
+		};
+		BCF1CB9B2845B9495A69621D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4BA63D625135E4196CDE3702 /* SwiftData.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		C53DD3420C85626EE2306886 /* StockPulseTests */ = {

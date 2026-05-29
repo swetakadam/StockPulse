@@ -33,10 +33,12 @@ protocol AIAssistantViewModelProtocol: ObservableObject {
     var isConnected:   Bool                { get }
     var isListening:   Bool                { get }
     var isGPTSpeaking: Bool                { get }
+    var isMuted:       Bool                { get }
     var statusMessage: String              { get }
     var errorMessage:  String?             { get }
     @MainActor func connect()    async
     @MainActor func disconnect() async
+    func toggleMute()
 }
 
 // MARK: - ViewModel
@@ -55,6 +57,7 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
     @Published var isConnected:   Bool   = false
     @Published var isListening:   Bool   = false
     @Published var isGPTSpeaking: Bool   = false
+    @Published var isMuted:       Bool   = false
     @Published var statusMessage: String = "Tap to connect"
     @Published var errorMessage:  String?
 
@@ -112,6 +115,10 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
         await webRTCManager.startSession(token: token)
     }
 
+    func toggleMute() {
+        webRTCManager.toggleMute()
+    }
+
     @MainActor
     func disconnect() async {
         webRTCManager.disconnect()
@@ -134,6 +141,7 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
                     self.isConnected   = self.webRTCManager.isConnected
                     self.isListening   = self.webRTCManager.isListening
                     self.isGPTSpeaking = self.webRTCManager.isGPTSpeaking
+                    self.isMuted       = self.webRTCManager.isMuted
                     self.statusMessage = self.webRTCManager.statusMessage
 
                     let webRTCMessages = self.webRTCManager.messages
