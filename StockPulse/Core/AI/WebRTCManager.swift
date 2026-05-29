@@ -44,6 +44,13 @@ final class WebRTCManager: NSObject, ObservableObject {
     // Auto-disconnect after 60 s of user silence
     private var silenceWorkItem: DispatchWorkItem?
     private let silenceTimeout: TimeInterval = 60
+    // Timestamp when output_audio_buffer.stopped fired — used to calculate
+    // remaining pipeline drain time before the mic can safely be opened.
+    private let audioDrainWindow: TimeInterval = 1.2
+    private var audioStoppedAt: Date? = nil
+    // True while a tool call has been dispatched but the follow-up response
+    // hasn't started yet. Mic must stay muted during this window.
+    private var isToolCallPending = false
 
     init(stockToolsManager: StockToolsManager) {
         self.stockToolsManager = stockToolsManager
@@ -225,6 +232,8 @@ final class WebRTCManager: NSObject, ObservableObject {
         currentToolName         = ""
         currentToolArgs         = ""
         needsNewAssistantBubble = true
+        isToolCallPending       = false
+        audioStoppedAt          = nil
         DispatchQueue.main.async { [weak self] in
             self?.messages      = []
             self?.isConnected   = false
@@ -239,17 +248,54 @@ final class WebRTCManager: NSObject, ObservableObject {
     func toggleMute() {
         guard let track = localAudioTrack else { return }
         let unmuting = !track.isEnabled
-        if unmuting && isGPTSpeaking {
-            // Cancel the in-progress response before enabling the mic so the
-            // speaker audio doesn't get picked up by the VAD and trigger a reply.
-            stockToolsManager.sendDataChannelMessage(["type": "response.cancel"])
+
+        if unmuting {
+            if isGPTSpeaking {
+                // Force server to flush queued audio + cancel the active response.
+                // output_audio_buffer.clear makes the server stop sending audio
+                // immediately, which triggers output_audio_buffer.stopped — that
+                // handler owns the drain-aware mic re-enable, so we don't open the
+                // mic here. The earlier "0.4s after response.cancelled" path was
+                // too short: device speakers were still playing buffered audio
+                // when the mic opened, looping the AI back to itself.
+                stockToolsManager.sendDataChannelMessage(["type": "output_audio_buffer.clear"])
+                stockToolsManager.sendDataChannelMessage(["type": "response.cancel"])
+                DispatchQueue.main.async { [weak self] in
+                    self?.statusMessage = "Stopping..."
+                }
+                logger.debug("🎤 Stop+unmute requested — awaiting output_audio_buffer.stopped")
+                return
+            }
+
+            // AI not actively speaking but pipeline may still be draining.
+            // Wait out whatever drain time remains before opening the mic.
+            let elapsed  = audioStoppedAt.map { Date().timeIntervalSince($0) } ?? audioDrainWindow
+            let remaining = max(0, audioDrainWindow - elapsed)
+
+            if remaining > 0 {
+                logger.debug("🎤 Drain window: \(remaining, format: .fixed(precision: 2))s remaining — delaying mic open")
+                DispatchQueue.main.async { [weak self] in
+                    self?.statusMessage = "🟢 Releasing mic..."
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
+                    self?.localAudioTrack?.isEnabled = true
+                    self?.isMuted = false
+                    self?.statusMessage = "🟢 Connected — speak now!"
+                }
+            } else {
+                track.isEnabled = true
+                DispatchQueue.main.async { [weak self] in
+                    self?.isMuted = false
+                    self?.statusMessage = "🟢 Connected — speak now!"
+                }
+            }
+            return
         }
-        track.isEnabled = unmuting
-        DispatchQueue.main.async { [weak self] in
-            self?.isMuted       = !unmuting
-            self?.isGPTSpeaking = unmuting ? false : self?.isGPTSpeaking ?? false
-        }
-        logger.debug("🎤 Mic \(unmuting ? "unmuted" : "muted") by user")
+
+        // Muting: immediate
+        track.isEnabled = false
+        DispatchQueue.main.async { [weak self] in self?.isMuted = true }
+        logger.debug("🎤 Mic muted by user")
     }
 
     // MARK: - Silence Timer
@@ -273,6 +319,10 @@ final class WebRTCManager: NSObject, ObservableObject {
 
     func setupAudioSession() {
         let configuration = RTCAudioSessionConfiguration.webRTC()
+        // voiceChat mode activates hardware AEC on real devices so the mic
+        // doesn't pick up speaker output. The simulator has no hardware AEC
+        // so some echo is expected there — use headphones when testing.
+        configuration.mode = AVAudioSession.Mode.voiceChat.rawValue
         configuration.categoryOptions = AVAudioSession.CategoryOptions([
             .allowBluetooth,
             .allowBluetoothA2DP
@@ -282,7 +332,7 @@ final class WebRTCManager: NSObject, ObservableObject {
         rtcAudioSession.lockForConfiguration()
         do {
             try rtcAudioSession.setConfiguration(configuration, active: true)
-            logger.debug("✅ RTCAudioSession configured")
+            logger.debug("✅ RTCAudioSession configured with voiceChat AEC")
         } catch {
             logger.error("❌ RTCAudioSession error: \(error)")
         }
@@ -331,8 +381,8 @@ final class WebRTCManager: NSObject, ObservableObject {
             stockToolsManager.sendSessionUpdate()
 
         case "response.created":
-            // Fires before any delta — use this to reliably open a fresh bubble.
-            // response.audio.started arrives too late (after first deltas in Azure's ordering).
+            // New response starting — tool result has been processed, clear pending flag.
+            isToolCallPending   = false
             currentAssistantText    = ""
             needsNewAssistantBubble = true
 
@@ -392,8 +442,7 @@ final class WebRTCManager: NSObject, ObservableObject {
             }
 
         case "output_audio_buffer.started":
-            // Mute mic during GPT playback to prevent echo feedback.
-            // User can tap the mute button to unmute and interrupt.
+            audioStoppedAt = nil
             DispatchQueue.main.async { [weak self] in
                 self?.localAudioTrack?.isEnabled = false
                 self?.isMuted       = true
@@ -402,18 +451,37 @@ final class WebRTCManager: NSObject, ObservableObject {
             }
 
         case "output_audio_buffer.stopped":
+            audioStoppedAt = Date()
             startSilenceTimer()
             DispatchQueue.main.async { [weak self] in
-                self?.localAudioTrack?.isEnabled = true
-                self?.isMuted       = false
-                self?.isGPTSpeaking = false
-                self?.statusMessage = "🟢 Connected — speak now!"
+                guard let self else { return }
+                self.isGPTSpeaking = false
+                // Don't say "speak now" yet — mic is still draining. The button
+                // would say "Muted" while the header says "speak now", which
+                // confuses the user. Hold "Releasing mic..." until the drain
+                // handler actually flips the mic on.
+                self.statusMessage = self.isToolCallPending
+                    ? "Processing..."
+                    : "🟢 Releasing mic..."
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + audioDrainWindow) { [weak self] in
+                guard let self, self.localAudioTrack?.isEnabled == false else { return }
+                guard !self.isToolCallPending else {
+                    self.logger.debug("🎤 Auto-unmute skipped — tool call still pending")
+                    return
+                }
+                self.localAudioTrack?.isEnabled = true
+                self.isMuted = false
+                self.statusMessage = "🟢 Connected — speak now!"
             }
 
         case "response.cancelled":
+            // Mic re-enable is owned by output_audio_buffer.stopped (which fires
+            // after output_audio_buffer.clear). Don't open the mic here — the
+            // previous 0.4s drain was too short and let speaker residue echo
+            // back into the mic, looping AI → mic → AI.
             DispatchQueue.main.async { [weak self] in
                 self?.isGPTSpeaking = false
-                self?.statusMessage = "🟢 Connected — speak now!"
             }
 
         case "response.audio_transcript.done":
@@ -430,6 +498,7 @@ final class WebRTCManager: NSObject, ObservableObject {
                let callId = json["call_id"] as? String { currentToolCallId = callId }
 
         case "response.function_call_arguments.done":
+            isToolCallPending = true   // mic stays muted until response.created
             if let callId = json["call_id"]    as? String { currentToolCallId = callId }
             if let name   = json["name"]        as? String { currentToolName   = name   }
             if let args   = json["arguments"]   as? String { currentToolArgs   = args   }
@@ -455,8 +524,15 @@ final class WebRTCManager: NSObject, ObservableObject {
             if let errObj  = json["error"] as? [String: Any],
                let message = errObj["message"] as? String {
                 logger.error("❌ Server error: \(message)")
-                DispatchQueue.main.async { [weak self] in
-                    self?.statusMessage = "Error: \(message)"
+                // Benign in our stop-during-drain flow: response ended on the
+                // server before our cancel reached it. Don't surface to user.
+                let isBenignCancelError =
+                    message.contains("Cancellation failed") ||
+                    message.contains("no active response")
+                if !isBenignCancelError {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.statusMessage = "Error: \(message)"
+                    }
                 }
             }
 

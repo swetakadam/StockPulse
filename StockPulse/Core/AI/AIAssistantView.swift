@@ -152,7 +152,7 @@ struct AIAssistantView<ViewModel: AIAssistantViewModelProtocol>: View {
             HStack(spacing: 10) {
                 Image(systemName: viewModel.isMuted ? "mic.slash.fill" : "mic.fill")
                     .font(.title3)
-                Text(viewModel.isMuted ? "Muted — tap to speak" : "Mic on")
+                Text(viewModel.isMuted ? "Muted" : "Mic on")
                     .fontWeight(.medium)
             }
             .frame(maxWidth: .infinity)

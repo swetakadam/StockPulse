@@ -588,10 +588,41 @@ active while the speaker is still playing. The VAD now hears the speaker output
 as if it were user speech and triggers a new AI response — the AI responds to
 its own voice.
 
-**Solution — cancel before unmute:**
-When unmuting while `isGPTSpeaking == true`, send `response.cancel` to the
-server first. The AI stops generating and the speaker goes silent before the
-mic is enabled. The user can then speak into a clean audio environment.
+**First attempt — `response.cancel` then open the mic 0.4 s later:**
+This was insufficient. `response.cancelled` arrives almost instantly from the
+server, but at that moment the iOS audio output buffer and the WebRTC jitter
+buffer still contain ~1 s of queued audio that has not yet played. Opening the
+mic 0.4 s later still captured speaker output → echo loop.
+
+**Final solution — `output_audio_buffer.clear` + `response.cancel` + drain
+window:**
+When unmuting while `isGPTSpeaking == true`, send both events. The `clear` flushes
+the server's outbound audio queue, which triggers `output_audio_buffer.stopped`.
+That handler owns the drain-aware mic re-enable: it waits the full
+`audioDrainWindow` (1.2 s on simulator) before flipping the mic on. The mic
+re-enable is in exactly one place — no parallel paths to drift.
+
+```swift
+// toggleMute when AI is speaking
+stockToolsManager.sendDataChannelMessage(["type": "output_audio_buffer.clear"])
+stockToolsManager.sendDataChannelMessage(["type": "response.cancel"])
+
+// response.cancelled handler — DOES NOT open the mic.
+// output_audio_buffer.stopped (below) owns the drain timing.
+
+case "output_audio_buffer.stopped":
+    audioStoppedAt = Date()
+    DispatchQueue.main.asyncAfter(deadline: .now() + audioDrainWindow) {
+        guard self.localAudioTrack?.isEnabled == false else { return }
+        guard !self.isToolCallPending else { return }   // see Problem 5
+        self.localAudioTrack?.isEnabled = true
+        self.isMuted = false
+    }
+```
+
+The server may also reply with `Cancellation failed: no active response found`
+when the cancel races with a response that just ended. This is benign — the
+audio is already stopped — so we suppress that specific error from the UI.
 
 #### Problem 4 — Voice changes character after tool calls
 Each `response.create` event triggers a fresh TTS (text-to-speech) synthesis
@@ -609,16 +640,73 @@ sendDataChannelMessage([
 This does not eliminate all variation (neural TTS is stochastic) but it
 significantly reduces the noticeable character shifts between turns.
 
+#### Problem 5 — Mic opens during long-running tool calls
+The agentic research tool (`run_research_agent`) can take 30–60 s while the LLM
+plans, fetches a 10-K, and synthesizes a briefing. Before this fix, the AI would
+say a short acknowledgement ("Let me research that for you") — that audio
+finished, `output_audio_buffer.stopped` fired, the drain window passed, and the
+mic auto-opened *while the tool was still running*. The user thought the AI was
+listening but it was actually still working in the background.
+
+**Solution — `isToolCallPending` guard:**
+Track when a tool call has been dispatched but the server hasn't started the
+follow-up response yet. The auto-unmute on `output_audio_buffer.stopped` skips
+if this flag is set, and the header status reads `Processing...` instead of
+`speak now`.
+
+```swift
+case "response.function_call_arguments.done":
+    isToolCallPending = true    // tool is about to run — keep mic muted
+
+case "response.created":
+    isToolCallPending = false   // server is now generating the follow-up response
+```
+
+#### Problem 6 — Status header lies during the drain window
+After `output_audio_buffer.stopped` fires, the mic is still muted for 1.2 s
+while the audio pipeline drains. If the header reads `🟢 Connected — speak now!`
+during that gap, the user tries to speak and gets confused — the button still
+says `Muted` and the first second of their sentence is dropped.
+
+**Solution — `🟢 Releasing mic...` holding status:**
+Show `Releasing mic...` from the moment audio stops until the drain handler
+actually flips the mic on. The header and the button stay consistent: when the
+header says "speak now," the button shows "Mic on."
+
+```
+"Speaking..."
+    ↓ output_audio_buffer.stopped
+"🟢 Releasing mic..."
+    ↓ +1.2 s drain → localAudioTrack.isEnabled = true
+"🟢 Connected — speak now!"
+```
+
+The same `Releasing mic...` status appears when the user manually taps unmute
+during a partial drain window — the message ends precisely when the mic opens.
+
 #### Summary of the full audio state machine
 
 ```
-output_audio_buffer.started  →  mic OFF  (echo prevention)
-output_audio_buffer.stopped  →  mic ON   (user can speak)
+AI starts talking:
+  output_audio_buffer.started   →  mic OFF, status "Speaking..."
+
+AI finishes talking naturally:
+  output_audio_buffer.stopped   →  status "🟢 Releasing mic..."
+  +audioDrainWindow (1.2 s)     →  mic ON, status "🟢 Connected — speak now!"
 
 User taps unmute while AI speaks:
-  1. response.cancel          →  AI stops immediately
-  2. mic ON                   →  clean audio for user input
-  3. output_audio_buffer.stopped fires  →  no-op (mic already on)
+  1. output_audio_buffer.clear  →  server flushes audio queue
+  2. response.cancel            →  server cancels response
+  3. status "Stopping..."
+  4. output_audio_buffer.stopped fires (from clear)
+  5. status "🟢 Releasing mic..."
+  6. +audioDrainWindow          →  mic ON, status "🟢 Connected — speak now!"
+
+Tool call in flight:
+  response.function_call_arguments.done   →  isToolCallPending = true
+  output_audio_buffer.stopped             →  drain handler SKIPS mic enable
+  response.created                        →  isToolCallPending = false
+  (next output_audio_buffer.stopped after tool result re-runs drain)
 ```
 
 ---
