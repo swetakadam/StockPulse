@@ -72,8 +72,10 @@ class AzureChatClient {
 
         Respond with ONLY the word "continue" or "done" and nothing else.
 
-        Choose "done" if: key data has been retrieved, or 3+ steps completed, or the goal is achievable with current data.
-        Choose "continue" if: critical data is clearly missing.
+        Choose "done" if: enough data has been gathered to give a meaningful, specific answer to the goal.
+        Choose "continue" if: the goal asked for research or analysis but no filing/10-K data has been \
+        fetched yet, OR multiple companies were requested and some have not been researched at all.
+        Do NOT stop just because several steps have completed — stop when the data is actually sufficient.
         """
 
         let content: String
@@ -96,10 +98,12 @@ class AzureChatClient {
 
     func synthesize(context: AgentContext) async throws -> String {
         let system = """
-        You are a stock research synthesizer. Based on all gathered data, write a concise spoken \
-        summary for the user. 3-4 sentences maximum. Speak naturally. \
-        Focus on available insights — if some data was unavailable, skip it and use what you have. \
-        Do not add disclaimers.
+        You are a stock research synthesizer. Based on all gathered data, write a spoken summary \
+        for the user. Aim for 5-8 sentences. Speak naturally and conversationally. \
+        Structure your answer: lead with key insights from SEC filings or business fundamentals \
+        (business model, revenue drivers, key risks), then mention price performance, then \
+        compare companies if multiple were researched. Use specific numbers and facts from the data. \
+        If some data was unavailable, skip it silently. Do not add disclaimers.
         """
 
         return try await sendMessage(
