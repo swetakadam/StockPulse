@@ -238,12 +238,18 @@ final class WebRTCManager: NSObject, ObservableObject {
 
     func toggleMute() {
         guard let track = localAudioTrack else { return }
-        let nowMuted = track.isEnabled   // will become muted after flip
-        track.isEnabled = !track.isEnabled
-        DispatchQueue.main.async { [weak self] in
-            self?.isMuted = nowMuted
+        let unmuting = !track.isEnabled
+        if unmuting && isGPTSpeaking {
+            // Cancel the in-progress response before enabling the mic so the
+            // speaker audio doesn't get picked up by the VAD and trigger a reply.
+            stockToolsManager.sendDataChannelMessage(["type": "response.cancel"])
         }
-        logger.debug("🎤 Mic \(nowMuted ? "muted" : "unmuted") by user")
+        track.isEnabled = unmuting
+        DispatchQueue.main.async { [weak self] in
+            self?.isMuted       = !unmuting
+            self?.isGPTSpeaking = unmuting ? false : self?.isGPTSpeaking ?? false
+        }
+        logger.debug("🎤 Mic \(unmuting ? "unmuted" : "muted") by user")
     }
 
     // MARK: - Silence Timer

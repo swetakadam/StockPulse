@@ -371,7 +371,13 @@ final class StockToolsManager {
                 "output":  result
             ]
         ])
-        sendDataChannelMessage(["type": "response.create"])
+        // Re-specify voice on every response.create so the audio synthesis
+        // context is consistent across tool call boundaries. Without this,
+        // each new generation pass can drift in pitch/prosody.
+        sendDataChannelMessage([
+            "type": "response.create",
+            "response": ["voice": RealtimeConfig.voice]
+        ])
         logger.debug("✅ Tool result sent for callId: \(callId)")
     }
 

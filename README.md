@@ -530,6 +530,97 @@ Strip all HTML tags first, then search for the ITEM anchor (`ITEM 1.`,
 Use `--level info` in `log stream`, not `--level debug`.
 Or use `logger.info()` for anything you need to observe during testing.
 
+### 13. WebRTC Echo and Interruption Challenges
+
+Running a real-time voice AI through WebRTC on iOS creates a chain of echo and
+interruption problems. Here is every problem we hit and how we solved it.
+
+#### Problem 1 — Echo feedback loop
+When the AI speaks through the device speaker, the microphone picks up that audio.
+The server-side VAD (Voice Activity Detection) hears the playback and thinks the
+user is speaking. The AI responds to itself in an infinite loop.
+
+**First attempt — hardware AEC via `voiceChat` mode:**
+Setting `AVAudioSession.Mode.voiceChat` activates the device's hardware acoustic
+echo canceller (AEC). On a real device this works reasonably well, but the
+simulator has no hardware AEC so the echo remains. The bigger problem: the
+behaviour was inconsistent across devices and the echo was still audible enough
+to trigger false VAD detections.
+
+**Final solution — mic mute during playback:**
+Disable `localAudioTrack.isEnabled` the moment `output_audio_buffer.started` fires
+and re-enable it on `output_audio_buffer.stopped`. The mic is off for exactly the
+duration of the AI's audio output — zero echo possible.
+
+```swift
+case "output_audio_buffer.started":
+    localAudioTrack?.isEnabled = false   // mic off — prevents echo
+
+case "output_audio_buffer.stopped":
+    localAudioTrack?.isEnabled = true    // mic back on — user can speak
+```
+
+#### Problem 2 — Muted mic blocks user interruption
+Muting the mic solves echo but creates a new problem: the user cannot interrupt
+the AI mid-sentence because the server's VAD never receives their voice.
+
+**Solution — mute toggle button:**
+Expose a visible mute/unmute button in the UI. The button shows a red
+`🎤/ Muted — tap to speak` badge while the AI is talking. Tapping it unmutes
+the mic, the server VAD detects the user's speech, and the AI stops.
+
+```swift
+// WebRTCManager
+func toggleMute() {
+    guard let track = localAudioTrack else { return }
+    let unmuting = !track.isEnabled
+    if unmuting && isGPTSpeaking {
+        // Cancel AI response BEFORE enabling mic (see Problem 3)
+        stockToolsManager.sendDataChannelMessage(["type": "response.cancel"])
+    }
+    track.isEnabled = unmuting
+}
+```
+
+#### Problem 3 — Unmuting while AI speaks feeds speaker audio into mic
+If the user taps "unmute" while the AI is speaking, the mic immediately becomes
+active while the speaker is still playing. The VAD now hears the speaker output
+as if it were user speech and triggers a new AI response — the AI responds to
+its own voice.
+
+**Solution — cancel before unmute:**
+When unmuting while `isGPTSpeaking == true`, send `response.cancel` to the
+server first. The AI stops generating and the speaker goes silent before the
+mic is enabled. The user can then speak into a clean audio environment.
+
+#### Problem 4 — Voice changes character after tool calls
+Each `response.create` event triggers a fresh TTS (text-to-speech) synthesis
+pass. Without an explicit voice setting on that event, the model can drift
+in pitch, pace, or prosody between the pre-tool response and the post-tool
+response — it can sound like a subtly different speaker.
+
+**Solution — re-specify voice on every `response.create`:**
+```swift
+sendDataChannelMessage([
+    "type": "response.create",
+    "response": ["voice": RealtimeConfig.voice]   // reinforce "coral" every time
+])
+```
+This does not eliminate all variation (neural TTS is stochastic) but it
+significantly reduces the noticeable character shifts between turns.
+
+#### Summary of the full audio state machine
+
+```
+output_audio_buffer.started  →  mic OFF  (echo prevention)
+output_audio_buffer.stopped  →  mic ON   (user can speak)
+
+User taps unmute while AI speaks:
+  1. response.cancel          →  AI stops immediately
+  2. mic ON                   →  clean audio for user input
+  3. output_audio_buffer.stopped fires  →  no-op (mic already on)
+```
+
 ---
 
 ## Future Roadmap
