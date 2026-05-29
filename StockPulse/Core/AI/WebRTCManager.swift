@@ -40,6 +40,9 @@ final class WebRTCManager: NSObject, ObservableObject {
     private var currentToolArgs         = ""
     // Set when a new audio response starts — forces the next delta to open a fresh bubble
     private var needsNewAssistantBubble = true
+    // Auto-disconnect after 60 s of user silence
+    private var silenceWorkItem: DispatchWorkItem?
+    private let silenceTimeout: TimeInterval = 60
 
     init(stockToolsManager: StockToolsManager) {
         self.stockToolsManager = stockToolsManager
@@ -209,10 +212,11 @@ final class WebRTCManager: NSObject, ObservableObject {
     }
 
     func disconnect() {
+        cancelSilenceTimer()
         dataChannel?.close()
         peerConnection?.close()
-        dataChannel    = nil
-        peerConnection = nil
+        dataChannel     = nil
+        peerConnection  = nil
         localAudioTrack = nil
         stockToolsManager.dataChannel = nil
         currentAssistantText    = ""
@@ -228,6 +232,23 @@ final class WebRTCManager: NSObject, ObservableObject {
             self?.statusMessage = "Disconnected"
         }
         logger.debug("🔌 Disconnected")
+    }
+
+    // MARK: - Silence Timer
+
+    private func startSilenceTimer() {
+        silenceWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.logger.debug("⏱️ 60 s silence — auto-disconnecting")
+            NotificationCenter.default.post(name: .sessionSilenceTimeout, object: nil)
+        }
+        silenceWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + silenceTimeout, execute: work)
+    }
+
+    private func cancelSilenceTimer() {
+        silenceWorkItem?.cancel()
+        silenceWorkItem = nil
     }
 
     // MARK: - Audio Session
@@ -298,6 +319,7 @@ final class WebRTCManager: NSObject, ObservableObject {
             needsNewAssistantBubble = true
 
         case "input_audio_buffer.speech_started":
+            cancelSilenceTimer()
             DispatchQueue.main.async { [weak self] in
                 self?.isListening   = true
                 self?.statusMessage = "Listening..."
@@ -360,7 +382,8 @@ final class WebRTCManager: NSObject, ObservableObject {
             }
 
         case "output_audio_buffer.stopped":
-            // GPT finished speaking — unmute mic
+            // GPT finished speaking — unmute mic and start silence countdown
+            startSilenceTimer()
             DispatchQueue.main.async { [weak self] in
                 self?.localAudioTrack?.isEnabled = true
                 self?.isGPTSpeaking = false
@@ -439,6 +462,7 @@ extension WebRTCManager: RTCPeerConnectionDelegate {
         logger.debug("ICE connection state: \(newState.rawValue)")
         switch newState {
         case .connected, .completed:
+            startSilenceTimer()
             DispatchQueue.main.async { [weak self] in
                 self?.isConnected   = true
                 self?.statusMessage = "🟢 Connected — speak now!"
@@ -494,6 +518,7 @@ extension WebRTCManager: RTCDataChannelDelegate {
 // MARK: - Notification Names
 
 extension Notification.Name {
-    static let userSpeechStopped  = Notification.Name("userSpeechStopped")
+    static let userSpeechStopped   = Notification.Name("userSpeechStopped")
     static let userTranscriptReady = Notification.Name("userTranscriptReady")
+    static let sessionSilenceTimeout = Notification.Name("sessionSilenceTimeout")
 }

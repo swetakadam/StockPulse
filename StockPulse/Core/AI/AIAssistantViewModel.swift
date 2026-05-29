@@ -203,5 +203,20 @@ final class AIAssistantViewModel: ObservableObject, AIAssistantViewModelProtocol
                 self.pendingUserBubbleIndex = nil
             }
         }
+
+        NotificationCenter.default.addObserver(
+            forName: .sessionSilenceTimeout,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.messages.append(TranscriptMessage(
+                role: .system,
+                text: "Session ended after 1 minute of silence."
+            ))
+            Task { @MainActor [weak self] in
+                await self?.disconnect()
+            }
+        }
     }
 }
