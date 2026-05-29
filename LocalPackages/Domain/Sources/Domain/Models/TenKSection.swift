@@ -13,4 +13,14 @@ public enum TenKSection: String, Codable, CaseIterable, Sendable {
         case .financialStatements: return "Financial Statements"
         }
     }
+
+    // SEC 10-K section headers use "ITEM N." — search case-insensitively
+    public var searchPattern: String {
+        switch self {
+        case .business:            return "ITEM 1."
+        case .riskFactors:         return "ITEM 1A."
+        case .mdAndA:              return "ITEM 7."
+        case .financialStatements: return "ITEM 8."
+        }
+    }
 }

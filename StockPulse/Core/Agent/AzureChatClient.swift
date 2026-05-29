@@ -114,20 +114,33 @@ class AzureChatClient {
 
     func parseSection(rawHTML: String, section: TenKSection) async throws -> String {
         let system = """
-        Extract the text for "\(section.rawValue)" from this SEC 10-K filing HTML. \
-        Remove all HTML tags, table formatting, and navigation elements. \
-        Return only the plain prose content of that section. \
-        Keep it under 1500 words. Focus on the most important points.
+        You are analyzing a plain-text excerpt from an SEC 10-K filing. \
+        Summarize the "\(section.displayName)" section in 4-6 concise sentences. \
+        Focus on key facts: business model, products, revenue drivers, risks, or financials — \
+        whatever is most relevant to the section. Omit legal boilerplate and repetition.
         """
 
-        let truncated = rawHTML.count > 8000
-            ? String(rawHTML.prefix(8000)) + "\n[truncated]"
-            : rawHTML
+        // Strip HTML tags to plain text
+        var plain = rawHTML.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        plain = plain.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        // Find the section by its "ITEM N." anchor and extract up to 25 000 chars from there.
+        // Without this, we'd just see the HTML head/CSS — none of the actual section content.
+        let chunk: String
+        if let range = plain.range(of: section.searchPattern, options: .caseInsensitive) {
+            let remaining = plain.distance(from: range.lowerBound, to: plain.endIndex)
+            let end = plain.index(range.lowerBound, offsetBy: min(25_000, remaining))
+            chunk = String(plain[range.lowerBound..<end])
+        } else {
+            chunk = String(plain.prefix(25_000))
+        }
 
         return try await sendMessage(
             system: system,
-            user: truncated,
-            maxTokens: 2000,
+            user: chunk,
+            maxTokens: 1500,
             jsonMode: false
         )
     }

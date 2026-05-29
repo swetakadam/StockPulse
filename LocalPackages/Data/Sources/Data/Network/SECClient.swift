@@ -66,7 +66,10 @@ public final class SECClient: Sendable {
     }
 
     func fetchRawDocument(url: URL) async throws -> String {
-        let (data, response) = try await fetch(.document(url: url))
+        var request = URLRequest(url: url)
+        request.setValue("StockPulse/1.0 sshinde5ster@gmail.com", forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html, */*", forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw SECError.documentFetchFailed(url)
