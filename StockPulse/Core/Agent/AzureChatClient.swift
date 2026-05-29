@@ -34,6 +34,10 @@ class AzureChatClient {
         - For multi-ticker price comparisons, set "parallel": true
         - Maximum 8 actions total
         - Parameter values must be strings
+        - For any "research", "analyze", "compare", or "deep dive" goal: ALWAYS include \
+        fetch_10k_section for the "business" section of every company mentioned. \
+        Do NOT plan only price fetches for research goals.
+        - When comparing two companies, fetch 10-K business section for BOTH companies.
         """
 
         let content = try await sendMessage(
@@ -98,18 +102,24 @@ class AzureChatClient {
 
     func synthesize(context: AgentContext) async throws -> String {
         let system = """
-        You are a stock research synthesizer. Based on all gathered data, write a spoken summary \
-        for the user. Aim for 5-8 sentences. Speak naturally and conversationally. \
-        Structure your answer: lead with key insights from SEC filings or business fundamentals \
-        (business model, revenue drivers, key risks), then mention price performance, then \
-        compare companies if multiple were researched. Use specific numbers and facts from the data. \
-        If some data was unavailable, skip it silently. Do not add disclaimers.
+        You are a stock research analyst delivering a briefing. Using ALL available data below, \
+        write a structured response with these sections — do not skip any section that has data:
+
+        1. Business model (1-2 sentences per company, from 10-K if available)
+        2. Key revenue drivers or growth areas (1-2 sentences)
+        3. Main risks (1 sentence)
+        4. Current stock price and today's move (1 sentence per company)
+        5. Comparison summary if multiple companies (1 sentence)
+
+        Rules: minimum 5 sentences total. Use specific facts and numbers from the data. \
+        Do not end with "let me know" or invitations to ask more. Do not add disclaimers. \
+        If a section has no data, skip it silently.
         """
 
         return try await sendMessage(
             system: system,
             user: context.asPromptContext(),
-            maxTokens: 800,
+            maxTokens: 1500,
             jsonMode: false
         )
     }

@@ -173,9 +173,9 @@ final class AgentToolRegistry: AgentToolRegistryProtocol {
         let result: String
         do {
             result = try await tool.handler(action.parameters)
-            logger.debug("✅ Tool \(action.toolName) succeeded")
+            logger.info("✅ Tool \(toolName) result: \(result.prefix(300))")
         } catch {
-            logger.error("❌ Tool \(action.toolName) failed: \(error)")
+            logger.info("❌ Tool \(toolName) threw: \(error.localizedDescription)")
             return AgentStep(
                 toolName: action.toolName,
                 parameters: action.parameters,
