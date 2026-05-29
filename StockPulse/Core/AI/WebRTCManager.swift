@@ -291,6 +291,12 @@ final class WebRTCManager: NSObject, ObservableObject {
         case "session.created":
             stockToolsManager.sendSessionUpdate()
 
+        case "response.created":
+            // Fires before any delta — use this to reliably open a fresh bubble.
+            // response.audio.started arrives too late (after first deltas in Azure's ordering).
+            currentAssistantText    = ""
+            needsNewAssistantBubble = true
+
         case "input_audio_buffer.speech_started":
             DispatchQueue.main.async { [weak self] in
                 self?.isListening   = true

@@ -87,7 +87,11 @@ final class StockToolsManager {
                     - Always use search_stock tool when user mentions a company name
                     - Always confirm before adding or removing from watchlist
                     - After navigating to a stock, briefly confirm the action
-                    
+                    - Use run_research_agent ONLY when the user explicitly asks to
+                      "research", "analyze", "deep dive", or "tell me about" a company.
+                      Do NOT call it for simple price questions, affirmations ("ok", "thanks",
+                      "amen", "sure"), or follow-up chat. One research call per user request.
+
                     Keep all responses under 3 sentences. Be concise and helpful.
                 """,
                 "modalities": ["text", "audio"],
