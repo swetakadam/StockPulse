@@ -18,6 +18,16 @@ https://github.com/user-attachments/assets/52d50bfa-4629-44b5-bf63-579977035b7f
 
 ---
 
+## Architecture
+
+![StockPulse system architecture](docs/architecture.png)
+
+Three SPM packages (Domain, Data, Features) wrapping a Core app target. The realtime voice model and the agentic research loop run as two parallel AI paths — the realtime model decides per request which one to dispatch.
+
+> Interactive version: [docs/architecture.html](docs/architecture.html) — open in any browser for the full styled diagram with the animated agent loop.
+
+---
+
 ## Screenshots
 
 | Dashboard | Stock Detail | Search | Watchlist | AI Assistant |

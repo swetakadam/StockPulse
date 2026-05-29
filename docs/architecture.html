@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StockPulse — Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #0a0f1e; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #e2e8f0;
+      padding: 32px;
+      min-height: 100vh;
+    }
+
+    .canvas {
+      width: 1600px;
+      margin: 0 auto;
+      background:
+        radial-gradient(1200px 600px at 80% -10%, rgba(56,189,248,0.10), transparent 60%),
+        radial-gradient(900px 500px at 0% 110%, rgba(168,85,247,0.10), transparent 60%),
+        linear-gradient(180deg, #0d1426 0%, #0a0f1e 100%);
+      border: 1px solid #1e293b;
+      border-radius: 28px;
+      padding: 44px 52px 36px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.45);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ----------- header ----------- */
+    .header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 28px;
+      border-bottom: 1px solid rgba(148,163,184,0.12);
+      margin-bottom: 36px;
+    }
+    .brand-row { display: flex; align-items: center; gap: 16px; }
+    .logo {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #38bdf8, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700; font-size: 22px;
+      color: #0a0f1e;
+      box-shadow: 0 10px 30px rgba(56,189,248,0.25);
+    }
+    .title { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: #f8fafc; }
+    .subtitle { font-size: 13px; color: #94a3b8; margin-top: 6px; letter-spacing: 0.02em; }
+    .credit {
+      text-align: right;
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .credit b { display: block; font-size: 13px; color: #e2e8f0; letter-spacing: 0; text-transform: none; font-weight: 600; margin-top: 4px; }
+
+    /* ----------- grid layout ----------- */
+    .stage {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      gap: 36px;
+      position: relative;
+      align-items: stretch;
+    }
+
+    /* ----------- phone column ----------- */
+    .phone-col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .phone {
+      width: 220px;
+      height: 460px;
+      border-radius: 36px;
+      background: linear-gradient(160deg, #1e293b, #0f172a);
+      border: 1px solid #334155;
+      padding: 14px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .notch {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 22px; background: #0a0f1e; border-radius: 999px;
+    }
+    .screen {
+      width: 100%; height: 100%;
+      background: #f1f5f9;
+      border-radius: 24px;
+      padding: 36px 12px 12px;
+      display: flex; flex-direction: column;
+      color: #0f172a;
+    }
+    .screen-header {
+      font-size: 9px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+    .screen-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+    .screen-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 8px; background: #ffffff; border-radius: 6px;
+      margin-bottom: 4px; font-size: 10px;
+    }
+    .screen-row .sym { font-weight: 700; }
+    .screen-row .pos { color: #16a34a; font-weight: 600; }
+    .screen-row .neg { color: #dc2626; font-weight: 600; }
+    .screen-spacer { flex: 1; }
+    .screen-tab {
+      display: flex; justify-content: space-around;
+      padding-top: 6px; border-top: 1px solid #e2e8f0;
+      font-size: 8px; color: #64748b;
+    }
+    .screen-tab .active { color: #3b82f6; font-weight: 600; }
+
+    .phone-caption { font-size: 12px; color: #94a3b8; text-align: center; max-width: 220px; line-height: 1.4; }
+
+    /* ----------- center column (layered app) ----------- */
+    .center-col { display: flex; flex-direction: column; gap: 18px; }
+
+    .layer {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px;
+      padding: 16px 18px;
+      backdrop-filter: blur(6px);
+    }
+    .layer h3 {
+      font-size: 10px; font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .layer h3 .dot { width: 8px; height: 8px; border-radius: 999px; }
+    .layer.ui    h3 .dot { background: #38bdf8; box-shadow: 0 0 12px #38bdf8; }
+    .layer.logic h3 .dot { background: #a855f7; box-shadow: 0 0 12px #a855f7; }
+    .layer.data  h3 .dot { background: #34d399; box-shadow: 0 0 12px #34d399; }
+    .layer.ai    h3 .dot { background: #fbbf24; box-shadow: 0 0 12px #fbbf24; }
+
+    .nodes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .node {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148,163,184,0.22);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #e2e8f0;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .node .glyph {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: #64748b;
+    }
+    .node.accent-blue   { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.08); }
+    .node.accent-purple { border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.08); }
+    .node.accent-green  { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); }
+    .node.accent-amber  { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.10); }
+
+    /* ----------- right column (external + agent loop) ----------- */
+    .right-col { display: flex; flex-direction: column; gap: 18px; }
+
+    .service {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .service .badge {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      color: #0a0f1e;
+      flex-shrink: 0;
+    }
+    .service.azure-rt   .badge { background: linear-gradient(135deg, #38bdf8, #6366f1); }
+    .service.azure-chat .badge { background: linear-gradient(135deg, #6366f1, #a855f7); }
+    .service.finnhub    .badge { background: linear-gradient(135deg, #22c55e, #14b8a6); }
+    .service.edgar      .badge { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+
+    .service .name { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+    .service .meta { font-size: 11px; color: #94a3b8; margin-top: 3px; line-height: 1.4; }
+    .service .proto {
+      display: inline-block;
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #64748b;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ----------- agent loop card ----------- */
+    .loop-card {
+      grid-column: 1 / -1;
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 28px;
+      background:
+        radial-gradient(400px 200px at 90% 50%, rgba(251,191,36,0.10), transparent 70%),
+        linear-gradient(180deg, rgba(251,191,36,0.04), rgba(251,191,36,0.01));
+      border: 1px solid rgba(251,191,36,0.35);
+      border-radius: 18px;
+      padding: 22px 28px;
+    }
+    .loop-info h2 {
+      font-size: 18px; font-weight: 700; color: #fbbf24;
+      letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .loop-info h2::before {
+      content: ""; width: 26px; height: 1px;
+      background: linear-gradient(90deg, #fbbf24, transparent);
+    }
+    .loop-info p {
+      font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-top: 10px; max-width: 720px;
+    }
+    .loop-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .step {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(251,191,36,0.25);
+    }
+    .step .n {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: #fbbf24; font-weight: 600;
+    }
+    .step .t { font-size: 12px; font-weight: 600; color: #f1f5f9; margin-top: 3px; }
+    .step .d { font-size: 10px; color: #94a3b8; margin-top: 3px; line-height: 1.4; }
+
+    /* ----------- circular cycle diagram ----------- */
+    .cycle {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      align-self: center;
+      justify-self: center;
+    }
+
+    /* ----------- footer ----------- */
+    .footer {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(148,163,184,0.12);
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: #64748b; letter-spacing: 0.04em;
+    }
+    .footer b { color: #cbd5e1; font-weight: 600; }
+    .footer .repo { font-family: 'JetBrains Mono', monospace; }
+
+    /* ----------- connector overlay svg ----------- */
+    .connectors {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      width: 100%; height: 100%;
+    }
+    .connectors path {
+      stroke-dasharray: 4 4;
+      animation: flow 22s linear infinite;
+    }
+    @keyframes flow {
+      from { stroke-dashoffset: 0; }
+      to   { stroke-dashoffset: -1000; }
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+
+    <!-- ============================ HEADER ============================ -->
+    <div class="header">
+      <div class="brand-row">
+        <div class="logo">$P</div>
+        <div>
+          <div class="title">StockPulse — System Architecture</div>
+          <div class="subtitle">iOS · SwiftUI · MVVM + Clean Architecture · Azure OpenAI Realtime + GPT-4.1 · WebRTC · SEC EDGAR</div>
+        </div>
+      </div>
+      <div class="credit">
+        Authored with
+        <b>Claude Code</b>
+      </div>
+    </div>
+
+    <!-- ============================ STAGE ============================ -->
+    <div class="stage">
+
+      <!-- ============= PHONE COLUMN ============= -->
+      <div class="phone-col">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="screen-header">Dashboard</div>
+            <div class="screen-title">Markets</div>
+            <div class="screen-row"><span class="sym">AAPL</span><span class="pos">$254.12 ▲ 1.2%</span></div>
+            <div class="screen-row"><span class="sym">TSLA</span><span class="neg">$298.40 ▼ 2.1%</span></div>
+            <div class="screen-row"><span class="sym">NVDA</span><span class="pos">$910.30 ▲ 3.4%</span></div>
+            <div class="screen-row"><span class="sym">MSFT</span><span class="pos">$432.55 ▲ 0.6%</span></div>
+            <div class="screen-row"><span class="sym">GOOGL</span><span class="neg">$172.80 ▼ 0.4%</span></div>
+            <div class="screen-spacer"></div>
+            <div class="screen-tab">
+              <span>Home</span>
+              <span>Watch</span>
+              <span>Search</span>
+              <span class="active">●AI</span>
+              <span>Alerts</span>
+            </div>
+          </div>
+        </div>
+        <div class="phone-caption">iPhone 17 Pro · iOS 17+ · 5 screens · live voice assistant</div>
+      </div>
+
+      <!-- ============= CENTER COLUMN: APP LAYERS ============= -->
+      <div class="center-col">
+
+        <div class="layer ui">
+          <h3><span class="dot"></span>Presentation · SwiftUI Views</h3>
+          <div class="nodes">
+            <span class="node accent-blue">Dashboard</span>
+            <span class="node accent-blue">Stock Detail</span>
+            <span class="node accent-blue">Search</span>
+            <span class="node accent-blue">Watchlist</span>
+            <span class="node accent-blue">AI Assistant</span>
+          </div>
+        </div>
+
+        <div class="layer logic">
+          <h3><span class="dot"></span>Domain · ViewModels + Use Cases</h3>
+          <div class="nodes" style="margin-bottom: 8px;">
+            <span class="node accent-purple"><span class="glyph">VM</span>Dashboard</span>
+            <span class="node accent-purple"><span class="glyph">VM</span>StockDetail</span>
+            <span class="node accent-purple"><span class="glyph">VM</span>Search</span>
+            <span class="node accent-purple"><span class="glyph">VM</span>Watchlist</span>
+            <span class="node accent-purple"><span class="glyph">VM</span>AIAssistant</span>
+          </div>
+          <div class="nodes">
+            <span class="node"><span class="glyph">UC</span>FetchStock</span>
+            <span class="node"><span class="glyph">UC</span>SearchStocks</span>
+            <span class="node"><span class="glyph">UC</span>Watchlist&nbsp;×3</span>
+            <span class="node"><span class="glyph">UC</span>FetchTenKSection</span>
+          </div>
+        </div>
+
+        <div class="layer data">
+          <h3><span class="dot"></span>Data · Repositories &amp; Two-Level Cache</h3>
+          <div class="nodes">
+            <span class="node accent-green">StockRepositoryImpl</span>
+            <span class="node accent-green">SECRepositoryImpl</span>
+            <span class="node">StockCache · Memory + UserDefaults</span>
+            <span class="node">WatchlistStore · SwiftData</span>
+            <span class="node">RecentSearchStore</span>
+          </div>
+        </div>
+
+        <div class="layer ai">
+          <h3><span class="dot"></span>AI Bridge · Voice + Tools + Agent</h3>
+          <div class="nodes">
+            <span class="node accent-amber">WebRTCManager</span>
+            <span class="node accent-amber">StockToolsManager · 7 tools</span>
+            <span class="node accent-amber">AgentOrchestrator</span>
+            <span class="node accent-amber">AzureChatClient</span>
+            <span class="node accent-amber">AgentMemory · SwiftData</span>
+            <span class="node accent-amber">TenKParser</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============= RIGHT COLUMN: EXTERNAL ============= -->
+      <div class="right-col">
+
+        <div style="font-size: 10px; color: #94a3b8; letter-spacing: 0.16em; text-transform: uppercase; padding-left: 4px;">External · behind Azure APIM gateway</div>
+
+        <div class="service azure-rt">
+          <div class="badge">RT</div>
+          <div>
+            <div class="name">Azure OpenAI · Realtime</div>
+            <div class="meta">gpt-realtime-mini — voice in / voice out + tool calling</div>
+            <div class="proto">WebRTC · Ephemeral token</div>
+          </div>
+        </div>
+
+        <div class="service azure-chat">
+          <div class="badge">4.1</div>
+          <div>
+            <div class="name">Azure OpenAI · Chat</div>
+            <div class="meta">GPT-4.1 mini — agent planner, reflector, synthesizer, 10-K parser</div>
+            <div class="proto">REST · plan / reflect / synth</div>
+          </div>
+        </div>
+
+        <div class="service finnhub">
+          <div class="badge">F</div>
+          <div>
+            <div class="name">Finnhub</div>
+            <div class="meta">Quotes · company profile · metrics · symbol search</div>
+            <div class="proto">REST · 60 req/min</div>
+          </div>
+        </div>
+
+        <div class="service edgar">
+          <div class="badge">SEC</div>
+          <div>
+            <div class="name">SEC EDGAR</div>
+            <div class="meta">company_tickers → CIK → latest 10-K filing HTML</div>
+            <div class="proto">REST · public, User-Agent required</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============= AGENT LOOP CARD ============= -->
+      <div class="loop-card">
+        <div class="loop-info">
+          <h2>Agentic Research Loop</h2>
+          <p>
+            The realtime voice model decides when a request is too complex to answer in one
+            tool call and hands off to <b>run_research_agent</b>. The orchestrator then runs
+            its own loop on GPT-4.1 mini — pulling 10-Ks from EDGAR, prices from Finnhub,
+            reflecting until the briefing is complete, and handing back a deterministic
+            summary that the voice model reads <i>verbatim</i> instead of paraphrasing.
+          </p>
+          <div class="loop-steps">
+            <div class="step">
+              <div class="n">01</div>
+              <div class="t">PLAN</div>
+              <div class="d">Decompose the goal into typed steps</div>
+            </div>
+            <div class="step">
+              <div class="n">02</div>
+              <div class="t">EXECUTE</div>
+              <div class="d">Dispatch tools — price, search, 10-K fetch</div>
+            </div>
+            <div class="step">
+              <div class="n">03</div>
+              <div class="t">REFLECT</div>
+              <div class="d">Did we get enough? continue / stop</div>
+            </div>
+            <div class="step">
+              <div class="n">04</div>
+              <div class="t">SYNTHESIZE</div>
+              <div class="d">Build the final briefing from tool outputs</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cycle">
+          <svg viewBox="0 0 320 320" width="320" height="320" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%"   stop-color="#fbbf24"/>
+                <stop offset="100%" stop-color="#f97316"/>
+              </linearGradient>
+              <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+              </marker>
+            </defs>
+
+            <!-- outer ring -->
+            <circle cx="160" cy="160" r="120" fill="none" stroke="url(#ringGrad)" stroke-width="2" stroke-dasharray="6 6" opacity="0.55"/>
+
+            <!-- 4 nodes -->
+            <g font-family="Inter, sans-serif" font-weight="700" font-size="13" fill="#0a0f1e" text-anchor="middle">
+              <!-- top -->
+              <circle cx="160" cy="40" r="36" fill="#fbbf24"/>
+              <text x="160" y="36">PLAN</text>
+              <text x="160" y="52" font-size="9" font-weight="500" fill="#0a0f1e" opacity="0.7">decompose</text>
+              <!-- right -->
+              <circle cx="280" cy="160" r="36" fill="#f59e0b"/>
+              <text x="280" y="156">EXECUTE</text>
+              <text x="280" y="172" font-size="9" font-weight="500" fill="#0a0f1e" opacity="0.7">tool calls</text>
+              <!-- bottom -->
+              <circle cx="160" cy="280" r="36" fill="#f97316"/>
+              <text x="160" y="276" fill="#ffffff">REFLECT</text>
+              <text x="160" y="292" font-size="9" font-weight="500" fill="#ffffff" opacity="0.85">continue?</text>
+              <!-- left -->
+              <circle cx="40" cy="160" r="36" fill="#ea580c"/>
+              <text x="40" y="156" fill="#ffffff">SYNTH</text>
+              <text x="40" y="172" font-size="9" font-weight="500" fill="#ffffff" opacity="0.85">briefing</text>
+            </g>
+
+            <!-- arrows along the ring -->
+            <g fill="none" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#arrowAmber)">
+              <path d="M 196,52 A 120,120 0 0 1 268,124"/>
+              <path d="M 268,196 A 120,120 0 0 1 196,268"/>
+              <path d="M 124,268 A 120,120 0 0 1 52,196"/>
+              <path d="M 52,124 A 120,120 0 0 1 124,52"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============= FOOTER ============= -->
+    <div class="footer">
+      <div><b>3 SPM packages</b> · Domain, Data, Features</div>
+      <div><b>90+</b> Swift files · <b>7</b> voice tools · <b>6</b> agent tools</div>
+      <div>github.com/swetakadam/StockPulse <span class="repo">↗</span></div>
+    </div>
+
+    <!-- connectors overlay -->
+    <svg class="connectors" viewBox="0 0 1600 1100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="flowBlue" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#38bdf8" stop-opacity="0.0"/>
+          <stop offset="40%"  stop-color="#38bdf8" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
+        </linearGradient>
+        <linearGradient id="flowAmber" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#fbbf24" stop-opacity="0.0"/>
+          <stop offset="40%"  stop-color="#fbbf24" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <!-- phone → app -->
+      <path d="M 280 360 C 360 360, 380 220, 500 220" fill="none" stroke="url(#flowBlue)" stroke-width="2"/>
+      <!-- app → external (top) -->
+      <path d="M 1080 240 C 1180 240, 1180 270, 1280 270" fill="none" stroke="url(#flowAmber)" stroke-width="2"/>
+      <!-- app → external (middle) -->
+      <path d="M 1080 420 C 1180 420, 1180 380, 1280 380" fill="none" stroke="url(#flowAmber)" stroke-width="2"/>
+      <!-- app → external (lower) -->
+      <path d="M 1080 540 C 1180 540, 1180 490, 1280 490" fill="none" stroke="url(#flowAmber)" stroke-width="2"/>
+    </svg>
+
+  </div>
+</body>
+</html>
