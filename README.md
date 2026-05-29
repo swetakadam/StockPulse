@@ -8,12 +8,13 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 
 ## Demo
 
-| Clip | What's in it |
-|------|--------------|
-| [▶ Tab tour (1 MB)](docs/demo/demo1.mp4) | Dashboard, Search, Stock Detail, Watchlist |
-| [▶ Voice + Agent (2 MB)](docs/demo/demo2-voice.mp4) | AI Voice Assistant with tool calls + agentic research |
+**Tab tour — Dashboard, Search, Stock Detail, Watchlist**
 
-> Click a link to download and play. GitHub blocks inline `<video>` players for files served from a repo path; inline playback works only for user-attachment URLs.
+https://github.com/user-attachments/assets/383fe69a-5714-4f8c-b2f3-5fc7050f5c2a
+
+**Voice Assistant + agentic research**
+
+https://github.com/user-attachments/assets/52d50bfa-4629-44b5-bf63-579977035b7f
 
 ---
 
