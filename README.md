@@ -325,28 +325,98 @@ xcodegen generate
 
 ### 3. Configure Secrets
 
-Create `Configurations/Secrets.xcconfig` (gitignored):
+Create `Configurations/Secrets.xcconfig` (gitignored — never commit this file):
 
 ```
-# Stock API
+# ── Stock data (Finnhub) ──────────────────────────────────────────────────────
 FINNHUB_API_KEY=your_finnhub_key
 FINNHUB_DEV_KEY=your_finnhub_key
+FINNHUB_STG_KEY=your_finnhub_key
 
-# AI Voice (optional)
-APIM_SUBSCRIPTION_KEY=your_apim_key
+# ── AI Voice — Azure OpenAI gpt-realtime-mini (WebRTC) ───────────────────────
+# Ephemeral token endpoint is fronted by APIM; subscription key goes here.
+APIM_SUBSCRIPTION_KEY=your_apim_subscription_key
 APIM_ENDPOINT=https:/$()/your-apim.azure-api.net
 WEBRTC_ENDPOINT=https:/$()/eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc
 REALTIME_DEPLOYMENT=gpt-realtime-mini
+
+# ── AI Research — Azure OpenAI GPT-4.1 mini (Agent planner / 10-K parser) ────
+# Direct REST endpoint for the chat completions deployment.
+# Format: https://your-apim.azure-api.net/<route>/openai/deployments/<model>/chat/completions
+AZURE_CHAT_ENDPOINT=https:/$()/your-apim.azure-api.net/your-route/openai/deployments/gpt-4.1-mini/chat/completions
+AZURE_CHAT_API_KEY=your_azure_chat_api_key
+# API version is set in Base.xcconfig — currently 2024-08-01-preview
 ```
 
-⚠️ Use `$()` to escape `//` in xcconfig (xcconfig treats `//` as comment)
+⚠️ Use `$()` to escape `//` in xcconfig (xcconfig treats `//` as a line comment)
 ⚠️ No spaces around `=`
+⚠️ `Secrets.xcconfig` is in `.gitignore` — never commit real keys
 
 ### 4. Build & Run
 
 ```bash
 open StockPulse.xcodeproj
 # Select Debug scheme → iPhone 17 Pro Max → CMD+R
+```
+
+---
+
+## Scripts
+
+### Build & Run
+
+```bash
+# Generate Xcode project after any new Swift file or project.yml change
+xcodegen generate
+
+# Build for simulator (no Xcode needed)
+xcodebuild -scheme StockPulse \
+  -destination 'platform=iOS Simulator,arch=arm64,name=iPhone 17 Pro' \
+  -configuration Debug build
+
+# Install + launch on a booted simulator
+APP=~/Library/Developer/Xcode/DerivedData/StockPulse-*/Build/Products/Debug-iphonesimulator/StockPulse.app
+xcrun simctl install booted "$APP"
+xcrun simctl launch booted com.sweta.stockpulse.debug
+```
+
+### Run Unit Tests
+
+```bash
+xcodebuild test \
+  -scheme StockPulse \
+  -destination 'platform=iOS Simulator,arch=arm64,name=iPhone 17 Pro' \
+  | xcpretty          # optional — brew install xcpretty for clean output
+```
+
+### Simulator Log Stream
+
+Stream all StockPulse logs (info level and above) while the app is running:
+
+```bash
+xcrun simctl spawn booted log stream \
+  --predicate 'subsystem == "com.sweta.stockpulse"' \
+  --level info 2>&1
+```
+
+Useful filter prefixes visible in the logs:
+
+| Prefix | Source |
+|--------|--------|
+| `[Agent.ChatClient]` | GPT-4.1 mini plan / reflect / synthesize calls |
+| `[Agent.Registry]` | Tool execution results (first 300 chars) |
+| `[Agent.Orchestrator]` | Loop steps, reflect decisions |
+| `[SEC.Client]` | EDGAR CIK lookup, submissions fetch, HTML download |
+| `[AI.WebRTC]` | WebRTC peer connection events |
+| `[AI.Tools]` | Tool call routing and results |
+
+### Verify Secrets Are Wired
+
+Quick sanity check — prints the first 8 chars of each key (safe to run, no full key exposed):
+
+```bash
+# From project root
+plutil -p StockPulse/Info.plist | grep -E "FINNHUB|AZURE|APIM|WEBRTC"
 ```
 
 ---
