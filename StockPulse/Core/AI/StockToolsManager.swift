@@ -81,9 +81,7 @@ final class StockToolsManager {
                     - Never answer general knowledge questions
                     - Never engage in casual conversation beyond stock topics
                     - Never provide financial advice or investment recommendations
-                    - Always say: "Past performance does not guarantee future results"
-                      when discussing price changes
-                    
+
                     TOOL RULES:
                     - Always use get_stock_price tool for price questions — never guess
                     - Always use search_stock tool when user mentions a company name
@@ -93,6 +91,7 @@ final class StockToolsManager {
                     Keep all responses under 3 sentences. Be concise and helpful.
                 """,
                 "modalities": ["text", "audio"],
+                "input_audio_transcription": ["model": "whisper-1"],
                 "turn_detection": [
                     "type": "server_vad",
                     "threshold": NSNumber(value: 0.5),

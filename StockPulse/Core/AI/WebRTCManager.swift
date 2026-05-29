@@ -34,10 +34,12 @@ final class WebRTCManager: NSObject, ObservableObject {
     private let factory:         RTCPeerConnectionFactory
 
     // Accumulates partial transcript deltas from streaming responses
-    private var currentAssistantText = ""
-    private var currentToolCallId    = ""
-    private var currentToolName      = ""
-    private var currentToolArgs      = ""
+    private var currentAssistantText    = ""
+    private var currentToolCallId       = ""
+    private var currentToolName         = ""
+    private var currentToolArgs         = ""
+    // Set when a new audio response starts — forces the next delta to open a fresh bubble
+    private var needsNewAssistantBubble = true
 
     init(stockToolsManager: StockToolsManager) {
         self.stockToolsManager = stockToolsManager
@@ -213,11 +215,13 @@ final class WebRTCManager: NSObject, ObservableObject {
         peerConnection = nil
         localAudioTrack = nil
         stockToolsManager.dataChannel = nil
-        currentAssistantText = ""
-        currentToolCallId    = ""
-        currentToolName      = ""
-        currentToolArgs      = ""
+        currentAssistantText    = ""
+        currentToolCallId       = ""
+        currentToolName         = ""
+        currentToolArgs         = ""
+        needsNewAssistantBubble = true
         DispatchQueue.main.async { [weak self] in
+            self?.messages      = []
             self?.isConnected   = false
             self?.isListening   = false
             self?.isGPTSpeaking = false
@@ -308,22 +312,25 @@ final class WebRTCManager: NSObject, ObservableObject {
             }
 
         case "response.audio.started":
+            currentAssistantText    = ""
+            needsNewAssistantBubble = true
             DispatchQueue.main.async { [weak self] in
-                self?.isGPTSpeaking        = true
-                self?.statusMessage        = "🟢 Connected — speaking..."
-                self?.currentAssistantText = ""
+                self?.isGPTSpeaking = true
+                self?.statusMessage = "🟢 Connected — speaking..."
             }
 
         case "response.audio_transcript.delta":
             if let delta = json["delta"] as? String {
                 currentAssistantText += delta
-                let snapshot = currentAssistantText
+                let snapshot   = currentAssistantText
+                let isNewBubble = needsNewAssistantBubble
+                if isNewBubble { needsNewAssistantBubble = false }
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    if let idx = self.messages.lastIndex(where: { $0.role == .assistant }) {
-                        self.messages[idx] = TranscriptMessage(role: .assistant, text: snapshot)
-                    } else {
+                    if isNewBubble {
                         self.messages.append(TranscriptMessage(role: .assistant, text: snapshot))
+                    } else if let idx = self.messages.lastIndex(where: { $0.role == .assistant }) {
+                        self.messages[idx] = TranscriptMessage(role: .assistant, text: snapshot)
                     }
                 }
             }

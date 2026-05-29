@@ -97,8 +97,9 @@ class AzureChatClient {
     func synthesize(context: AgentContext) async throws -> String {
         let system = """
         You are a stock research synthesizer. Based on all gathered data, write a concise spoken \
-        summary for the user. 3-4 sentences maximum. Speak naturally. Focus on the most important insights.
-        Past performance does not guarantee future results.
+        summary for the user. 3-4 sentences maximum. Speak naturally. \
+        Focus on available insights — if some data was unavailable, skip it and use what you have. \
+        Do not add disclaimers.
         """
 
         return try await sendMessage(
