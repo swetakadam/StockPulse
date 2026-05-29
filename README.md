@@ -6,6 +6,16 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 
 ---
 
+## Demo
+
+| Tab tour | Voice + Agent |
+|----------|---------------|
+| [▶ demo1.mov](docs/demo/demo1.mov) — Dashboard, Search, Stock Detail, Watchlist | [▶ demo2-voice.mov](docs/demo/demo2-voice.mov) — AI Voice Assistant + agentic research |
+
+> GitHub renders `.mov` links as an inline player. Click to play.
+
+---
+
 ## Screenshots
 
 | Dashboard | Stock Detail | Search | Watchlist | AI Assistant |
