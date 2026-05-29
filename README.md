@@ -8,11 +8,15 @@ A production-grade iOS stock market app built with SwiftUI, Clean Architecture, 
 
 ## Demo
 
-| Tab tour | Voice + Agent |
-|----------|---------------|
-| [▶ demo1.mov](docs/demo/demo1.mov) — Dashboard, Search, Stock Detail, Watchlist | [▶ demo2-voice.mov](docs/demo/demo2-voice.mov) — AI Voice Assistant + agentic research |
+**Tab tour — Dashboard, Search, Stock Detail, Watchlist**
 
-> GitHub renders `.mov` links as an inline player. Click to play.
+<video src="https://github.com/swetakadam/StockPulse/raw/main/docs/demo/demo1.mp4" controls width="600"></video>
+
+**Voice Assistant + agentic research**
+
+<video src="https://github.com/swetakadam/StockPulse/raw/main/docs/demo/demo2-voice.mp4" controls width="600"></video>
+
+> If the inline player doesn't load, click [demo1.mp4](docs/demo/demo1.mp4) or [demo2-voice.mp4](docs/demo/demo2-voice.mp4) to download/play.
 
 ---
 
