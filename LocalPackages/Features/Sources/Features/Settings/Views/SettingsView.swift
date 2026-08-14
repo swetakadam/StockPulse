@@ -35,9 +35,12 @@ public struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                         .font(.title2)
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(viewModel.currentUser.displayName ?? "Apple User")
+                        Text(viewModel.currentUser.displayName
+                             ?? viewModel.currentUser.email
+                             ?? "Apple User")
                             .font(.headline)
-                        if let email = viewModel.currentUser.email {
+                        if viewModel.currentUser.displayName != nil,
+                           let email = viewModel.currentUser.email {
                             Text(email)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
