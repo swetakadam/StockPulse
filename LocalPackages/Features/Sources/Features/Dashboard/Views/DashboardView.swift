@@ -16,15 +16,18 @@ public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
     /// Navigation closures — wired by AppCoordinatorView in the main target.
     var onStockTapped:     (String) -> Void = { _ in }
     var onSeeAllWatchlist: () -> Void       = {}
+    var onFilterTapped:    () -> Void       = {}
 
     public init(
         viewModel: ViewModel,
         onStockTapped:     @escaping (String) -> Void = { _ in },
-        onSeeAllWatchlist: @escaping () -> Void       = {}
+        onSeeAllWatchlist: @escaping () -> Void       = {},
+        onFilterTapped:    @escaping () -> Void       = {}
     ) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.onStockTapped     = onStockTapped
         self.onSeeAllWatchlist = onSeeAllWatchlist
+        self.onFilterTapped    = onFilterTapped
     }
 
     // MARK: - Body
@@ -44,6 +47,13 @@ public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.isLoading)
         .safeAreaInset(edge: .top) { headerView }
         .task { await viewModel.loadDashboard() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { onFilterTapped() } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
     }
 
     // MARK: - Content
