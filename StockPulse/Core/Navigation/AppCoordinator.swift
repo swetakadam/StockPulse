@@ -16,7 +16,7 @@ final class AppCoordinator: ObservableObject {
         case dashboard
         case watchlist
         case search
-        case notifications
+        case settings      // was: notifications
         case assistant
     }
 
@@ -27,6 +27,7 @@ final class AppCoordinator: ObservableObject {
     var stockDetailCoordinator = StockDetailCoordinator()
     var watchlistCoordinator   = WatchlistCoordinator()
     var searchCoordinator      = SearchCoordinator()
+    var settingsCoordinator    = SettingsCoordinator()
 
     // MARK: - Root State
 
@@ -100,11 +101,11 @@ final class AppCoordinator: ObservableObject {
 
     private var activeCoordinator: any CoordinatorProtocol {
         switch activeTab {
-        case .dashboard:     return dashboardCoordinator
-        case .watchlist:     return watchlistCoordinator
-        case .search:        return searchCoordinator
-        case .notifications: return dashboardCoordinator
-        case .assistant:     return dashboardCoordinator
+        case .dashboard: return dashboardCoordinator
+        case .watchlist: return watchlistCoordinator
+        case .search:    return searchCoordinator
+        case .settings:  return settingsCoordinator
+        case .assistant: return dashboardCoordinator
         }
     }
 

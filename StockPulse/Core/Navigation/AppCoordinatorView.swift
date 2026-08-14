@@ -30,11 +30,9 @@ struct AppCoordinatorView: View {
                 .tabItem { Label("Assistant", systemImage: "waveform.circle.fill") }
                 .tag(AppCoordinator.AppTab.assistant)
 
-            NavigationStack {
-                Text("Notifications")
-            }
-            .tabItem { Label("Notifications", systemImage: "bell.fill") }
-            .tag(AppCoordinator.AppTab.notifications)
+            SettingsTab(coordinator: coordinator.settingsCoordinator)
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tag(AppCoordinator.AppTab.settings)
         }
         .fullScreenCover(isPresented: $coordinator.isShowingAuth) {
             Text("Auth Flow")
@@ -62,6 +60,9 @@ private struct DashboardTab: View {
                 },
                 onSeeAllWatchlist: {
                     coordinator.navigate(to: .watchlist)
+                },
+                onFilterTapped: {
+                    coordinator.presentSheet(.stockFilter)
                 }
             )
             .navigationDestination(for: AppRoute.self) { route in
@@ -71,6 +72,19 @@ private struct DashboardTab: View {
                         viewModel: Container.shared.stockDetailViewModel(),
                         symbol: symbol
                     )
+                default:
+                    EmptyView()
+                }
+            }
+            .sheet(item: $coordinator.presentedSheet) { route in
+                switch route {
+                case .stockFilter:
+                    StockFilterView(
+                        onApply:   { _ in coordinator.dismissSheet() },
+                        onDismiss: { coordinator.dismissSheet() }
+                    )
+                    .presentationDetents([.medium, .large], selection: $coordinator.activeDetent)
+                    .presentationDragIndicator(.visible)
                 default:
                     EmptyView()
                 }
@@ -148,6 +162,37 @@ private struct SearchTab: View {
                 default:
                     EmptyView()
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Settings Tab
+
+private struct SettingsTab: View {
+    @ObservedObject var coordinator: SettingsCoordinator
+    @StateObject private var settingsVM = Container.shared.settingsViewModel()
+
+    var body: some View {
+        NavigationStack(path: $coordinator.path) {
+            SettingsView(
+                viewModel: settingsVM,
+                onSignInTapped: { coordinator.presentSheet(.authFlow) }
+            )
+        }
+        .sheet(item: $coordinator.presentedSheet) { route in
+            switch route {
+            case .authFlow:
+                let authVM = Container.shared.authViewModel()
+                AuthSheetView(
+                    viewModel: authVM,
+                    onDetentChange: { coordinator.sheetCoordinator.setDetent($0) },
+                    onDismiss: { coordinator.dismissSheet() }
+                )
+                .presentationDetents([.medium, .large], selection: $coordinator.sheetCoordinator.currentDetent)
+                .presentationDragIndicator(.visible)
+            default:
+                EmptyView()
             }
         }
     }

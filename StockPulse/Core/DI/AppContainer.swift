@@ -145,6 +145,38 @@ extension Container {
         }
     }
 
+    // MARK: - Auth
+
+    var authRepository: Factory<any AuthRepositoryProtocol> {
+        self { AuthRepositoryImpl() }
+            .singleton
+    }
+
+    var signInWithAppleUseCase: Factory<any SignInWithAppleUseCaseProtocol> {
+        self { SignInWithAppleUseCase(repository: self.authRepository()) }
+    }
+
+    var getCurrentUserUseCase: Factory<any GetCurrentUserUseCaseProtocol> {
+        self { GetCurrentUserUseCase(repository: self.authRepository()) }
+    }
+
+    var signOutUseCase: Factory<any SignOutUseCaseProtocol> {
+        self { SignOutUseCase(repository: self.authRepository()) }
+    }
+
+    var authViewModel: Factory<AuthViewModel> {
+        self { AuthViewModel(signInWithAppleUseCase: self.signInWithAppleUseCase()) }
+    }
+
+    var settingsViewModel: Factory<SettingsViewModel> {
+        self {
+            SettingsViewModel(
+                getCurrentUserUseCase: self.getCurrentUserUseCase(),
+                signOutUseCase:        self.signOutUseCase()
+            )
+        }
+    }
+
     // MARK: - SEC / 10-K
 
     var azureChatClient: Factory<AzureChatClient> {
