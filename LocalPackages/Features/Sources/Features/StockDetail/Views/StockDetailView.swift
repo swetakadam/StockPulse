@@ -86,7 +86,6 @@ private final class MockStockDetailViewModel: ObservableObject, StockDetailViewM
     func toggleWatchlist()               async {}
     func selectRange(_ range: TimeRange) async { selectedRange = range }
 }
-#endif
 
 #Preview {
     NavigationStack {
@@ -96,3 +95,4 @@ private final class MockStockDetailViewModel: ObservableObject, StockDetailViewM
         )
     }
 }
+#endif

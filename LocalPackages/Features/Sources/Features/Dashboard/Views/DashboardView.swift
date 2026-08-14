@@ -142,6 +142,7 @@ public struct DashboardView<ViewModel: DashboardViewModelProtocol>: View {
 
 // MARK: - Preview
 
+#if DEBUG
 private final class MockDashboardViewModel: ObservableObject, DashboardViewModelProtocol {
     @Published var marketIndices:   [MarketIndex] = MarketIndex.mockList
     @Published var trendingStocks:  [Stock]       = Stock.mockList
@@ -158,3 +159,4 @@ private final class MockDashboardViewModel: ObservableObject, DashboardViewModel
 #Preview {
     DashboardView(viewModel: MockDashboardViewModel())
 }
+#endif

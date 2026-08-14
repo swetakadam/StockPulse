@@ -107,6 +107,7 @@ public struct WatchlistView<ViewModel: WatchlistViewModelProtocol>: View {
 
 // MARK: - Preview Mock
 
+#if DEBUG
 private final class MockWatchlistViewModel: ObservableObject, WatchlistViewModelProtocol {
     @Published var stocks:     [Stock]             = [.mockAAPL, .mockGOOGL]
     @Published var sortOption: WatchlistSortOption = .name
@@ -128,3 +129,4 @@ private final class MockWatchlistViewModel: ObservableObject, WatchlistViewModel
         WatchlistView(viewModel: MockWatchlistViewModel())
     }
 }
+#endif

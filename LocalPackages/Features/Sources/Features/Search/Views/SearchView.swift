@@ -119,6 +119,7 @@ public struct SearchView<ViewModel: SearchViewModelProtocol>: View {
 
 // MARK: - Preview Mock
 
+#if DEBUG
 private final class MockSearchViewModel: ObservableObject, SearchViewModelProtocol {
     @Published var query: String = ""
     @Published var results: [Stock] = [.mockAAPL, .mockGOOGL]
@@ -146,3 +147,4 @@ private final class MockSearchViewModel: ObservableObject, SearchViewModelProtoc
         SearchView(viewModel: MockSearchViewModel())
     }
 }
+#endif
