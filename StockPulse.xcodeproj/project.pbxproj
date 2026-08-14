@@ -103,6 +103,7 @@
 		804FB90FC9EA9A2115C1DE47 /* PrimaryButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButtonStyle.swift; sourceTree = "<group>"; };
 		8175AF22E606409AC48F756C /* StockToolsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockToolsManager.swift; sourceTree = "<group>"; };
 		818B9D335E18E80C351D7FE8 /* StockPulseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StockPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		83C3C16AEB1AAFDE905D8F95 /* StockPulse.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StockPulse.entitlements; sourceTree = "<group>"; };
 		870CAB227A6AC5A3555DA3C4 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		8BD5A5D2FC792FF0847981F7 /* AgentOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentOrchestrator.swift; sourceTree = "<group>"; };
 		953CCB3247DA4A907127F537 /* Domain */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Domain; path = LocalPackages/Domain; sourceTree = SOURCE_ROOT; };
@@ -174,6 +175,7 @@
 				A2012F20AC18AFDC39E19E48 /* Core */,
 				1BE6D012A31D39683FF8C21D /* Assets.xcassets */,
 				BC86A11E39059CFF3599B00C /* Info.plist */,
+				83C3C16AEB1AAFDE905D8F95 /* StockPulse.entitlements */,
 				252AD87D1A080EC7DD27628C /* StockPulseApp.swift */,
 			);
 			path = StockPulse;
@@ -787,6 +789,7 @@
 			baseConfigurationReference = 01E3DE075EC01D4A4DAE4552 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = StockPulse/StockPulse.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2RB6B6Z8G3;
@@ -826,6 +829,7 @@
 			baseConfigurationReference = 3732740170478811D2DAEBE2 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = StockPulse/StockPulse.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2RB6B6Z8G3;
@@ -846,6 +850,7 @@
 			baseConfigurationReference = 4D9E00231F33697BFC007960 /* Staging.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = StockPulse/StockPulse.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2RB6B6Z8G3;
