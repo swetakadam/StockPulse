@@ -50,6 +50,19 @@ public struct AuthSheetView<ViewModel: AuthViewModelProtocol>: View {
             SignInWithAppleButton(.signIn, onRequest: configureRequest, onCompletion: handleCompletion)
                 .signInWithAppleButtonStyle(.black)
                 .frame(height: 50)
+            #if DEBUG
+            Button("Simulate Sign In (Debug)") {
+                Task {
+                    await viewModel.signInWithApple(
+                        userId: "debug-user-001",
+                        email: "debug@example.com",
+                        displayName: "Debug User"
+                    )
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+            #endif
             Button("Continue without signing in") { onDismiss() }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
