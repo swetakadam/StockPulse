@@ -117,6 +117,10 @@ public struct AuthSheetView<ViewModel: AuthViewModelProtocol>: View {
                 )
             }
         case .failure(let error as ASAuthorizationError) where error.code == .canceled:
+            // User dismissed the system sheet — no state change needed.
+            // Note: AKAuthenticationError -7003 (no Apple ID in Simulator Settings)
+            // also surfaces as .canceled. Sign into an Apple ID in the Simulator's
+            // Settings app to enable Sign in with Apple during development.
             break
         case .failure(let error):
             viewModel.setError(error.localizedDescription)

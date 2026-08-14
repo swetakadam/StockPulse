@@ -172,6 +172,7 @@ private struct SearchTab: View {
 private struct SettingsTab: View {
     @ObservedObject var coordinator: SettingsCoordinator
     @StateObject private var settingsVM = Container.shared.settingsViewModel()
+    @StateObject private var authVM    = Container.shared.authViewModel()
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
@@ -183,11 +184,13 @@ private struct SettingsTab: View {
         .sheet(item: $coordinator.presentedSheet) { route in
             switch route {
             case .authFlow:
-                let authVM = Container.shared.authViewModel()
                 AuthSheetView(
                     viewModel: authVM,
                     onDetentChange: { coordinator.sheetCoordinator.setDetent($0) },
-                    onDismiss: { coordinator.dismissSheet() }
+                    onDismiss: {
+                        authVM.reset()
+                        coordinator.dismissSheet()
+                    }
                 )
                 .presentationDetents([.medium, .large], selection: $coordinator.sheetCoordinator.currentDetent)
                 .presentationDragIndicator(.visible)
