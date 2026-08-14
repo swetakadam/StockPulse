@@ -12,6 +12,7 @@
 		07B30E15B8ADCC03FBA6031D /* Factory in Frameworks */ = {isa = PBXBuildFile; productRef = DC6896661ADBC87262097068 /* Factory */; };
 		07C0B74BB2F56473B5407B5A /* AzureChatClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C7A3528A62BC0497DAF121 /* AzureChatClient.swift */; };
 		15BB1E6667A0F09C6BD3CF8C /* AzureChatConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C58A57D2F268BF7D21AAEC4 /* AzureChatConfig.swift */; };
+		1C3CFADBD395134180432525 /* SettingsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D807375F11405563C36D3BE3 /* SettingsCoordinator.swift */; };
 		248F09CCAEBA132DC569DDB6 /* AgentOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B3E3844D99B4BEE98F0290 /* AgentOrchestratorTests.swift */; };
 		268C68D2A81424A87DA144C9 /* StockPulseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8308DE6E17C66198DEB4CE /* StockPulseUITests.swift */; };
 		26A6D82C2DD148345A7D052D /* PrimaryButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804FB90FC9EA9A2115C1DE47 /* PrimaryButtonStyle.swift */; };
@@ -123,6 +124,7 @@
 		D348E2FE44F62B79F9F1F005 /* VoiceIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIntent.swift; sourceTree = "<group>"; };
 		D55D140AD3A363127E7F2C75 /* AppCoordinatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorView.swift; sourceTree = "<group>"; };
 		D590B5CC0970772B055817B6 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		D807375F11405563C36D3BE3 /* SettingsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCoordinator.swift; sourceTree = "<group>"; };
 		E2FB2039BAE952FFB684CC71 /* StockPulseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPulseTests.swift; sourceTree = "<group>"; };
 		F24A415F0CB78B00EE38B189 /* AgentMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentMemoryTests.swift; sourceTree = "<group>"; };
 		F7B3E3844D99B4BEE98F0290 /* AgentOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentOrchestratorTests.swift; sourceTree = "<group>"; };
@@ -297,6 +299,7 @@
 				A07DC1572AD4C86113EA5F79 /* NavigationStateManager.swift */,
 				1632372EBF213F59EB1A9028 /* RouterProtocol.swift */,
 				CE5A11CCBA98DCF8AF752E68 /* SearchCoordinator.swift */,
+				D807375F11405563C36D3BE3 /* SettingsCoordinator.swift */,
 				A6FF72D62FB780995A104CFF /* SheetCoordinator.swift */,
 				3EE2A5F1131C39CE316A5FB9 /* SheetRoute.swift */,
 				A12D7FBCAC415A3EADCF7F62 /* StockDetailCoordinator.swift */,
@@ -492,6 +495,7 @@
 				8B254C351E901B9EAC2DDDE0 /* RealtimeSessionManager.swift in Sources */,
 				388CC59582C9283F88BF5ADF /* RouterProtocol.swift in Sources */,
 				E27017CAA5D880722A3E85B1 /* SearchCoordinator.swift in Sources */,
+				1C3CFADBD395134180432525 /* SettingsCoordinator.swift in Sources */,
 				89FEBD7582B51FF9174F4897 /* SheetCoordinator.swift in Sources */,
 				B144DFFEFC769F5367DC45C0 /* SheetRoute.swift in Sources */,
 				9B0A0FC84A11CB47FAD3CF4B /* StockDetailCoordinator.swift in Sources */,
