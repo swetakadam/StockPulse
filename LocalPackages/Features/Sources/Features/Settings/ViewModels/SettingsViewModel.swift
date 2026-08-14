@@ -3,6 +3,7 @@ import Domain
 
 public protocol SettingsViewModelProtocol: ObservableObject {
     var currentUser: AuthUser { get }
+    func refresh()
     func signOut()
 }
 
@@ -19,6 +20,11 @@ public final class SettingsViewModel: ObservableObject, SettingsViewModelProtoco
         self.getCurrentUserUseCase = getCurrentUserUseCase
         self.signOutUseCase        = signOutUseCase
         self.currentUser           = getCurrentUserUseCase.execute()
+    }
+
+    @MainActor
+    public func refresh() {
+        currentUser = getCurrentUserUseCase.execute()
     }
 
     @MainActor

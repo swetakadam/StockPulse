@@ -190,6 +190,7 @@ private struct SettingsTab: View {
                     onDismiss: {
                         authVM.reset()
                         coordinator.dismissSheet()
+                        settingsVM.refresh()
                     }
                 )
                 .presentationDetents([.medium, .large], selection: $coordinator.sheetCoordinator.currentDetent)
