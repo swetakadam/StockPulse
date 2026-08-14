@@ -11,7 +11,7 @@ final class DashboardCoordinator: ObservableObject, RouterProtocol {
     @Published var path = NavigationPath()
     @Published var presentedSheet: SheetRoute?
     @Published var presentedFullScreen: SheetRoute?
-    @Published var activeDetent: PresentationDetent = .large
+    @Published var activeDetent: PresentationDetent = .medium
 
     // MARK: - CoordinatorProtocol
 
@@ -86,6 +86,7 @@ final class DashboardCoordinator: ObservableObject, RouterProtocol {
     // MARK: - RouterProtocol
 
     func presentSheet(_ route: SheetRoute) {
+        activeDetent = .medium
         presentedSheet = route
     }
 
